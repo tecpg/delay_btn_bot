@@ -1,64 +1,60 @@
 import time
 import logging
-
 import all_betcodes
 import get_rightside_odds
 import oddslot
 
-# Logging config (Heroku captures stdout)
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
+# Logging configuration
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 
-TASK_DELAY = 5  # seconds between tasks
+# Constants
+_START_DELAY_HOURS = 4   # initial delay in hours
+_RUNTIME = 5             # seconds between each task
 
+
+def countdown(hours: int):
+    total_seconds = hours * 3600
+    while total_seconds > 0:
+        hrs, remainder = divmod(total_seconds, 3600)
+        mins, secs = divmod(remainder, 60)
+        logging.info(f"⏳ Starting in {hrs}h {mins}m {secs}s")
+        time.sleep(60)  # update every minute
+        total_seconds -= 60
 
 def run_task(task, index, total):
-    """Run a single task with timing, logging, and error handling."""
+    """Run a single task with logging and sleep delay."""
     task_name = task.__name__
-    start_msg = f"▶ [{index}/{total}] Starting {task_name}..."
-    logging.info(start_msg)
-    print(start_msg)
-
-    start_time = time.time()
-
+    message = f"▶ [{index}/{total}] Running {task_name}..."
+    logging.info(message)
+    print(message)
     try:
         task.run()
-        duration = time.time() - start_time
-
-        success_msg = (
-            f"✅ [{index}/{total}] {task_name} completed "
-            f"in {duration:.2f}s"
-        )
-        logging.info(success_msg)
-        print(success_msg)
-
     except Exception as e:
         error_msg = f"❌ [{index}/{total}] {task_name} failed: {e}"
-        logging.exception(error_msg)
+        logging.error(error_msg)
         print(error_msg)
-
-    time.sleep(TASK_DELAY)
+    time.sleep(_RUNTIME)
 
 
 def run_tasks():
-    logging.info("📅 Daily Heroku scheduled job started")
-    print("📅 Daily Heroku scheduled job started")
+    # Countdown before start
+    start_message = f"⏳ Waiting for {_START_DELAY_HOURS} hours before starting tasks..."
+    logging.info(start_message)
+    print(start_message)
+    countdown(_START_DELAY_HOURS)
 
-    tasks = [
-        all_betcodes,
-        oddslot,
-        get_rightside_odds,
-    ]
+    logging.info("📅 Starting daily tasks...")
+    print("📅 Starting daily tasks...")
 
+    tasks = [all_betcodes, oddslot, get_rightside_odds]
     total_tasks = len(tasks)
 
-    for index, task in enumerate(tasks, start=1):
-        run_task(task, index, total_tasks)
+    for idx, task in enumerate(tasks, start=1):
+        run_task(task, idx, total_tasks)
 
-    logging.info("🏁 All scheduled tasks finished")
-    print("🏁 All scheduled tasks finished")
+    success_message = "✅ All tasks completed successfully."
+    logging.info(success_message)
+    print(success_message)
 
 
 if __name__ == "__main__":

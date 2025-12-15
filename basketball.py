@@ -111,7 +111,7 @@ def scrape_basketball_data():
         )
 
         page = context.new_page()
-        page.goto("https://www.forebet.com/en/basketball/predictions/2025-12-10")
+        page.goto("https://www.forebet.com/en/basketball/predictions-today")
         page.wait_for_selector("h1.frontH", timeout=60000)
         html = page.content()
         browser.close()

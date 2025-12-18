@@ -6,7 +6,7 @@ import oddslot
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 
-_START_DELAY_HOURS = 4
+_START_DELAY_HOURS = 2
 _RUNTIME = 5
 
 

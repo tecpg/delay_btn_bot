@@ -42,9 +42,7 @@ def run_tasks():
     logging.info("🚀 Worker started")
 
     countdown(_START_DELAY_HOURS)
-
     logging.info("📅 Starting daily tasks")
-
     tasks = [all_betcodes, oddslot, get_rightside_odds]
 
     for i, task in enumerate(tasks, start=1):

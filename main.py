@@ -1,8 +1,5 @@
 import time
 import logging
-import all_betcodes
-import get_rightside_odds
-import oddslot
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 

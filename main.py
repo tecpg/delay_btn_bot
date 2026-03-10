@@ -1,52 +1,107 @@
-import time
-import logging
+import os
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse
+from typing import List, Optional
+import mysql.connector
+import redis
+import json
+from datetime import date
+import kbt_funtions  # your existing DB connection helper
+import kbt_load_env
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
+app = FastAPI(title="Match Fixtures API")
 
-_START_DELAY_HOURS = 2
-_RUNTIME = 5
+# -----------------------------
+# Connect to Redis
+# -----------------------------
+REDIS_URL = kbt_load_env.redis_url
+redis_client = redis.from_url(REDIS_URL, decode_responses=True)  # decode_responses=True returns strings
 
+CACHE_TTL = 24 * 60 * 60  # 24 hours cache
 
-def countdown(hours: int):
-    """Eco-safe countdown: minutes only, one log per minute."""
-    total_minutes = hours * 60
+# ---------------------------
+# Pydantic Model
+# ---------------------------
+from pydantic import BaseModel
 
-    logging.info(f"⏳ Delaying start for {total_minutes} minutes")
+class FixtureOut(BaseModel):
+    fixture_id: int
+    league: str
+    league_logo: Optional[str]
+    home_team: str
+    home_logo: Optional[str]
+    away_team: str
+    away_logo: Optional[str]
+    match_time: str  # "HH:MM:SS"
+    date: str        # "YYYY-MM-DD"
+    prediction: Optional[str]
+    odd: str
+    source: Optional[str]
+    last_updated: Optional[str]
 
-    while total_minutes > 0:
-        hrs = total_minutes // 60
-        mins = total_minutes % 60
+# ---------------------------
+# DB Connection Helper
+# ---------------------------
+def get_db():
+    return kbt_funtions.db_connection()
 
-        logging.info(f"⏳ Starting in {hrs}h {mins}m")
+# ---------------------------
+# Redis Helpers
+# ---------------------------
+def get_fixtures_from_cache():
+    cache_key = f"fixtures:{date.today()}"
+    cached = redis_client.get(cache_key)
+    if cached:
+        return json.loads(cached)
+    return None
 
-        time.sleep(60)   # sleep one full minute
-        total_minutes -= 1
+def set_fixtures_to_cache(fixtures):
+    cache_key = f"fixtures:{date.today()}"
+    redis_client.setex(cache_key, CACHE_TTL, json.dumps(fixtures))
 
+# ---------------------------
+# API Endpoint
+# ---------------------------
+@app.get("/fixtures/today", response_model=List[FixtureOut])
+def get_fixtures_today():
+    # 1️⃣ Try Redis cache first
+    cached = get_fixtures_from_cache()
+    if cached:
+        return cached
 
-def run_task(task, index, total):
-    name = task.__name__
-    logging.info(f"▶ [{index}/{total}] Running {name}")
-
+    # 2️⃣ Cache miss → fetch from MySQL
     try:
-        task.run()
+        conn = get_db()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("""
+            SELECT fixture_id, league, league_logo, home_team, home_logo,
+                   away_team, away_logo, match_time, date, prediction, odd, source, last_updated
+            FROM pro_tips
+            WHERE date = CURDATE()
+            ORDER BY match_time ASC
+        """)
+        fixtures = cursor.fetchall()
+
+        # 3️⃣ Ensure match_time is string
+        for f in fixtures:
+            if f.get("match_time") is not None:
+                # Already stored as string in DB → keep as-is
+                f["match_time"] = str(f["match_time"])
+            if f.get("date") is not None:
+                f["date"] = str(f["date"])
+            if f.get("last_updated") is not None:
+                f["last_updated"] = f["last_updated"].strftime("%Y-%m-%dT%H:%M:%S")
+
+        # 4️⃣ Save to Redis
+        set_fixtures_to_cache(fixtures)
+
+        return fixtures
+
     except Exception as e:
-        logging.exception(f"❌ [{index}/{total}] {name} failed")
+        return JSONResponse(content={"error": str(e)}, status_code=500)
 
-    time.sleep(_RUNTIME)
-
-
-def run_tasks():
-    logging.info("🚀 Worker started")
-
-    countdown(_START_DELAY_HOURS)
-    logging.info("📅 Starting daily tasks")
-    tasks = [all_betcodes, oddslot, get_rightside_odds]
-
-    for i, task in enumerate(tasks, start=1):
-        run_task(task, i, len(tasks))
-
-    logging.info("✅ All tasks completed — exiting worker")
-
-
-if __name__ == "__main__":
-    run_tasks()
+    finally:
+        if cursor:
+            cursor.close()
+        if conn and conn.is_connected():
+            conn.close()

@@ -1,29 +1,26 @@
-import os
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from typing import List, Optional
 import mysql.connector
 import redis
 import json
-from datetime import date
-import kbt_funtions  # your existing DB connection helper
+from datetime import date, timedelta
+import kbt_funtions
 import kbt_load_env
+from pydantic import BaseModel
 
 app = FastAPI(title="Match Fixtures API")
 
 # -----------------------------
-# Connect to Redis
+# Redis setup
 # -----------------------------
 REDIS_URL = kbt_load_env.redis_url
-redis_client = redis.from_url(REDIS_URL, decode_responses=True)  # decode_responses=True returns strings
+redis_client = redis.from_url(REDIS_URL, decode_responses=True)
+CACHE_TTL = 7 * 24 * 60 * 60  # 7 days
 
-CACHE_TTL = 24 * 60 * 60  # 24 hours cache
-
-# ---------------------------
-# Pydantic Model
-# ---------------------------
-from pydantic import BaseModel
-
+# -----------------------------
+# Pydantic model
+# -----------------------------
 class FixtureOut(BaseModel):
     fixture_id: int
     league: str
@@ -39,88 +36,47 @@ class FixtureOut(BaseModel):
     source: Optional[str]
     last_updated: Optional[str]
 
-# ---------------------------
-# DB Connection Helper
-# ---------------------------
+# -----------------------------
+# DB helper
+# -----------------------------
 def get_db():
     return kbt_funtions.db_connection()
 
-# ---------------------------
-# Redis Helpers
-# ---------------------------
-def get_fixtures_from_cache():
-    cache_key = f"fixtures:{date.today()}"
+# -----------------------------
+# Redis helper
+# -----------------------------
+def get_fixtures_from_cache(fixture_date: str):
+    cache_key = f"fixtures:{fixture_date}"
     cached = redis_client.get(cache_key)
     if cached:
         return json.loads(cached)
     return None
 
-def set_fixtures_to_cache(fixtures):
-    cache_key = f"fixtures:{date.today()}"
+def set_fixtures_to_cache(fixture_date: str, fixtures: list):
+    cache_key = f"fixtures:{fixture_date}"
     redis_client.setex(cache_key, CACHE_TTL, json.dumps(fixtures))
 
-# ---------------------------
-# API Endpoint
-# ---------------------------
+# -----------------------------
+# API endpoints
+# -----------------------------
 @app.get("/fixtures/today", response_model=List[FixtureOut])
 def get_fixtures_today():
-    # 1️⃣ Try Redis cache first
-    cached = get_fixtures_from_cache()
+    today_str = str(date.today())
+    cached = get_fixtures_from_cache(today_str)
     if cached:
         return cached
-
-    # 2️⃣ Cache miss → fetch from MySQL
-    try:
-        conn = get_db()
-        cursor = conn.cursor(dictionary=True)
-        cursor.execute("""
-            SELECT fixture_id, league, league_logo, home_team, home_logo,
-                   away_team, away_logo, match_time, date, prediction, odd, source, last_updated
-            FROM pro_tips
-            WHERE date = CURDATE()
-            ORDER BY match_time ASC
-        """)
-        fixtures = cursor.fetchall()
-
-        # 3️⃣ Ensure match_time is string
-        for f in fixtures:
-            if f.get("match_time") is not None:
-                # Already stored as string in DB → keep as-is
-                f["match_time"] = str(f["match_time"])
-            if f.get("date") is not None:
-                f["date"] = str(f["date"])
-            if f.get("last_updated") is not None:
-                f["last_updated"] = f["last_updated"].strftime("%Y-%m-%dT%H:%M:%S")
-
-        # 4️⃣ Save to Redis
-        set_fixtures_to_cache(fixtures)
-
-        return fixtures
-
-    except Exception as e:
-        return JSONResponse(content={"error": str(e)}, status_code=500)
-
-    finally:
-        if cursor:
-            cursor.close()
-        if conn and conn.is_connected():
-            conn.close()
-
+    return get_fixtures_by_date(today_str)
 
 @app.get("/fixtures/{fixture_date}", response_model=List[FixtureOut])
 def get_fixtures_by_date(fixture_date: str):
-
-    cache_key = f"fixtures:{fixture_date}"
-
-    # 1️⃣ Check Redis cache
-    cached = redis_client.get(cache_key)
+    # Check Redis cache
+    cached = get_fixtures_from_cache(fixture_date)
     if cached:
-        return json.loads(cached)
+        return cached
 
     try:
         conn = get_db()
         cursor = conn.cursor(dictionary=True)
-
         cursor.execute("""
             SELECT fixture_id, league, league_logo, home_team, home_logo,
                    away_team, away_logo, match_time, date, prediction, odd, source, last_updated
@@ -128,22 +84,19 @@ def get_fixtures_by_date(fixture_date: str):
             WHERE date = %s
             ORDER BY match_time ASC
         """, (fixture_date,))
-
         fixtures = cursor.fetchall()
 
-        # Format fields
+        # Ensure string formatting
         for f in fixtures:
-            if f.get("match_time") is not None:
+            if f.get("match_time"):
                 f["match_time"] = str(f["match_time"])
-
-            if f.get("date") is not None:
+            if f.get("date"):
                 f["date"] = str(f["date"])
-
-            if f.get("last_updated") is not None:
+            if f.get("last_updated"):
                 f["last_updated"] = f["last_updated"].strftime("%Y-%m-%dT%H:%M:%S")
 
-        # 2️⃣ Save to Redis cache
-        redis_client.setex(cache_key, CACHE_TTL, json.dumps(fixtures))
+        # Save to Redis (7 days)
+        set_fixtures_to_cache(fixture_date, fixtures)
 
         return fixtures
 

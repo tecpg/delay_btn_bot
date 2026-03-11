@@ -105,3 +105,53 @@ def get_fixtures_today():
             cursor.close()
         if conn and conn.is_connected():
             conn.close()
+
+
+@app.get("/fixtures/{fixture_date}", response_model=List[FixtureOut])
+def get_fixtures_by_date(fixture_date: str):
+
+    cache_key = f"fixtures:{fixture_date}"
+
+    # 1️⃣ Check Redis cache
+    cached = redis_client.get(cache_key)
+    if cached:
+        return json.loads(cached)
+
+    try:
+        conn = get_db()
+        cursor = conn.cursor(dictionary=True)
+
+        cursor.execute("""
+            SELECT fixture_id, league, league_logo, home_team, home_logo,
+                   away_team, away_logo, match_time, date, prediction, odd, source, last_updated
+            FROM pro_tips
+            WHERE date = %s
+            ORDER BY match_time ASC
+        """, (fixture_date,))
+
+        fixtures = cursor.fetchall()
+
+        # Format fields
+        for f in fixtures:
+            if f.get("match_time") is not None:
+                f["match_time"] = str(f["match_time"])
+
+            if f.get("date") is not None:
+                f["date"] = str(f["date"])
+
+            if f.get("last_updated") is not None:
+                f["last_updated"] = f["last_updated"].strftime("%Y-%m-%dT%H:%M:%S")
+
+        # 2️⃣ Save to Redis cache
+        redis_client.setex(cache_key, CACHE_TTL, json.dumps(fixtures))
+
+        return fixtures
+
+    except Exception as e:
+        return JSONResponse(content={"error": str(e)}, status_code=500)
+
+    finally:
+        if cursor:
+            cursor.close()
+        if conn and conn.is_connected():
+            conn.close()

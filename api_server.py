@@ -33,6 +33,9 @@ class FixtureOut(BaseModel):
     date: str        # "YYYY-MM-DD"
     prediction: Optional[str]
     odd: str
+    home_score: Optional[str]
+    away_score: Optional[str]
+    status: Optional[str]
     source: Optional[str]
     last_updated: Optional[str]
 
@@ -79,7 +82,8 @@ def get_fixtures_by_date(fixture_date: str):
         cursor = conn.cursor(dictionary=True)
         cursor.execute("""
             SELECT fixture_id, league, league_logo, home_team, home_logo,
-                   away_team, away_logo, match_time, date, prediction, odd, source,
+                   away_team, away_logo, match_time, date, prediction, odd, home_score,
+                       awaya_score, status,source,
                         last_updated
             FROM pro_tips
             WHERE date = %s
@@ -89,6 +93,10 @@ def get_fixtures_by_date(fixture_date: str):
 
         # Ensure string formatting
         for f in fixtures:
+            
+            f["home_score"] = f.get("home_score") or ""
+            f["away_score"] = f.get("away_score") or ""
+            f["status"] = f.get("status") or ""
             if f.get("match_time"):
                 f["match_time"] = str(f["match_time"])
             if f.get("date"):

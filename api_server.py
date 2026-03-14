@@ -33,9 +33,9 @@ class FixtureOut(BaseModel):
     date: str        # "YYYY-MM-DD"
     prediction: Optional[str]
     odd: str
-    home_score: str
-    away_score: str
-    status: str
+    home_score: Optional[str]
+    away_score: Optional[str]
+    status: Optional[str]
     source: Optional[str]
     last_updated: Optional[str]
 

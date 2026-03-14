@@ -85,7 +85,7 @@ def get_fixtures_by_date(fixture_date: str):
         # Cache in Redis
         set_fixtures_to_cache(fixture_date, [f.dict() for f in fixtures_out])
 
-        return fixtures_out
+        return {"raw": fixtures}   # skip validation
 
     except Exception as e:
         return JSONResponse(content={"error": str(e)}, status_code=500)

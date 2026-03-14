@@ -95,6 +95,7 @@ def get_fixtures_by_date(fixture_date: str):
 
         # Safely handle NULL/empty values
         for f in fixtures:
+
             f["home_score"] = str(f.get("home_score") or "")
             f["away_score"] = str(f.get("away_score") or "")
             f["status"] = str(f.get("status") or "")
@@ -107,8 +108,7 @@ def get_fixtures_by_date(fixture_date: str):
             f["odd"] = f.get("odd") or ""
             f["source"] = f.get("source") or ""
             f["last_updated"] = f["last_updated"].strftime("%Y-%m-%dT%H:%M:%S") if f.get("last_updated") else ""
-
-        # Save to Redis
+                # Save to Redis
         set_fixtures_to_cache(fixture_date, fixtures)
 
         return fixtures

@@ -95,20 +95,20 @@ def get_fixtures_by_date(fixture_date: str):
 
         # Safely handle NULL/empty values
         for f in fixtures:
-
+         
+            # Convert None / non-str to str
             f["home_score"] = str(f.get("home_score") or "")
             f["away_score"] = str(f.get("away_score") or "")
             f["status"] = str(f.get("status") or "")
-            f["match_time"] = str(f.get("match_time") or "")
-            f["date"] = str(f.get("date") or "")
-            f["league_logo"] = f.get("league_logo") or ""
-            f["home_logo"] = f.get("home_logo") or ""
-            f["away_logo"] = f.get("away_logo") or ""
-            f["prediction"] = f.get("prediction") or ""
-            f["odd"] = f.get("odd") or ""
-            f["source"] = f.get("source") or ""
-            f["last_updated"] = f["last_updated"].strftime("%Y-%m-%dT%H:%M:%S") if f.get("last_updated") else ""
-                # Save to Redis
+
+            if f.get("match_time"):
+                f["match_time"] = str(f["match_time"])
+            if f.get("date"):
+                f["date"] = str(f["date"])
+            if f.get("last_updated") and hasattr(f["last_updated"], "strftime"):
+                f["last_updated"] = f["last_updated"].strftime("%Y-%m-%dT%H:%M:%S")
+
+                 # Save to Redis
         set_fixtures_to_cache(fixture_date, fixtures)
 
         return fixtures

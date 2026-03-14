@@ -83,7 +83,7 @@ def get_fixtures_by_date(fixture_date: str):
                    home_score, away_score, status, source, last_updated
             FROM pro_tips
             WHERE `date` = %s
-            ORDER BY match_time ASC
+            ORDER BY match_time DESC
         """, (fixture_date,))
         fixtures = cursor.fetchall()
 

@@ -125,7 +125,7 @@ CACHE_TTL_LONG  = 86400 * 3 # 3 days for finished matches
 def get_db():
     return kbt_funtions.db_connection()
 
-@app.get("/api/fixture-details/{fixture_id}")
+@app.get("/fixture-details/{fixture_id}")
 async def get_fixture_details(fixture_id: int):
     # cache_key = f"fixture_full:{fixture_id}"
     # cached = redis_client.get(cache_key)

@@ -32,7 +32,7 @@ class FixtureOut(BaseModel):
     status: Optional[str] = None          # ← add = None
     source: Optional[str] = None
     last_updated: Optional[str] = None
-    
+
 def get_db():
     return kbt_funtions.db_connection()
 
@@ -51,9 +51,9 @@ def get_fixtures_today():
 
 @app.get("/fixtures/{fixture_date}", response_model=List[FixtureOut])
 def get_fixtures_by_date(fixture_date: str):
-    cached = get_fixtures_from_cache(fixture_date)
-    if cached:
-        return cached
+    # cached = get_fixtures_from_cache(fixture_date)
+    # if cached:
+    #     return cached
 
     conn = None
     cursor = None

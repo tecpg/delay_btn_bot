@@ -10,6 +10,7 @@ db_pwd = os.environ['db_password']
 
 api_key =os.environ['api_key']
 api_key_secret =os.environ['api_key_secret']
+api_football_key = os.environ['api_football_api_key']
 
 access_token =os.environ['access_token']
 access_token_secret = os.environ['access_token_secret']

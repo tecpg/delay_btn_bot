@@ -83,7 +83,7 @@ def get_fixtures_by_date(fixture_date: str):
         cursor.execute("""
             SELECT fixture_id, league, league_logo, home_team, home_logo,
                    away_team, away_logo, match_time, date, prediction, odd, home_score,
-                       awaya_score, status,source,
+                       away_score, status,source,
                         last_updated
             FROM pro_tips
             WHERE date = %s

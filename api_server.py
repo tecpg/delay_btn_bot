@@ -27,9 +27,9 @@ class FixtureOut(BaseModel):
     date: str
     prediction: Optional[str]
     odd: str
-    home_score: Optional[str]
-    away_score: Optional[str]
-    status: Optional[str]
+    home_score: str
+    away_score: str
+    status: str
     source: Optional[str]
     last_updated: Optional[str]
 

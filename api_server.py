@@ -41,9 +41,26 @@ def get_fixtures_from_cache(fixture_date: str):
     if cached:
         return json.loads(cached)
     return None
+from datetime import date, timedelta
 
 def set_fixtures_to_cache(fixture_date: str, fixtures: list):
-    redis_client.setex(f"fixtures:{fixture_date}", CACHE_TTL, json.dumps(fixtures))
+    cache_key = f"fixtures:{fixture_date}"
+    
+    try:
+        match_date = date.fromisoformat(fixture_date)
+        today = date.today()
+        days_old = (today - match_date).days
+        
+        if days_old > 7:          # very old matches – rarely change
+            ttl = 24 * 60 * 60          # 1 day
+        elif days_old >= 0:       # today or past
+            ttl = 60 * 60               # 1 hour (scores usually final after FT)
+        else:                     # future matches
+            ttl = 7 * 24 * 60 * 60      # your original 7 days
+    except ValueError:
+        ttl = CACHE_TTL  # fallback if date parsing fails
+    
+    redis_client.setex(cache_key, ttl, json.dumps(fixtures))
 
 @app.get("/fixtures/today", response_model=List[FixtureOut])
 def get_fixtures_today():
@@ -51,9 +68,9 @@ def get_fixtures_today():
 
 @app.get("/fixtures/{fixture_date}", response_model=List[FixtureOut])
 def get_fixtures_by_date(fixture_date: str):
-    # cached = get_fixtures_from_cache(fixture_date)
-    # if cached:
-    #     return cached
+    cached = get_fixtures_from_cache(fixture_date)
+    if cached:
+        return parse_obj_as(List[FixtureOut], cached)
 
     conn = None
     cursor = None
@@ -95,3 +112,12 @@ def get_fixtures_by_date(fixture_date: str):
             cursor.close()
         if conn and conn.is_connected():
             conn.close()
+
+
+# Add a manual cache-clear endpoint (useful for admin/debug)
+# Call it with POST /admin/clear-cache/2026-03-11 when you know results have been updated.
+@app.post("/admin/clear-cache/{fixture_date}")
+def clear_cache(fixture_date: str):
+    cache_key = f"fixtures:{fixture_date}"
+    deleted = redis_client.delete(cache_key)
+    return {"message": f"Cache for {fixture_date} cleared", "deleted": deleted > 0}

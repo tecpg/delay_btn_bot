@@ -18,20 +18,20 @@ CACHE_TTL = 7 * 24 * 60 * 60  # 7 days
 class FixtureOut(BaseModel):
     fixture_id: int
     league: str
-    league_logo: Optional[str]
+    league_logo: Optional[str] = None
     home_team: str
-    home_logo: Optional[str]
+    home_logo: Optional[str] = None
     away_team: str
-    away_logo: Optional[str]
+    away_logo: Optional[str] = None
     match_time: str
     date: str
-    prediction: Optional[str]
+    prediction: Optional[str] = None
     odd: str
-    home_score: str
-    away_score: str
-    status: str
-    source: Optional[str]
-    last_updated: Optional[str]
+    home_score: Optional[str] = None      # ← add = None
+    away_score: Optional[str] = None      # ← add = None
+    status: Optional[str] = None          # ← add = None
+    source: Optional[str] = None
+    last_updated: Optional[str] = None
 
 def get_db():
     return kbt_funtions.db_connection()

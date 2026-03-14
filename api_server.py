@@ -127,10 +127,10 @@ def get_db():
 
 @app.get("/api/fixture-details/{fixture_id}")
 async def get_fixture_details(fixture_id: int):
-    cache_key = f"fixture_full:{fixture_id}"
-    cached = redis_client.get(cache_key)
-    if cached:
-        return json.loads(cached)
+    # cache_key = f"fixture_full:{fixture_id}"
+    # cached = redis_client.get(cache_key)
+    # if cached:
+    #     return json.loads(cached)
 
     conn = get_db()
     try:

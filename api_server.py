@@ -32,7 +32,7 @@ class FixtureOut(BaseModel):
     status: Optional[str] = None          # ← add = None
     source: Optional[str] = None
     last_updated: Optional[str] = None
-
+    
 def get_db():
     return kbt_funtions.db_connection()
 
@@ -49,7 +49,7 @@ def set_fixtures_to_cache(fixture_date: str, fixtures: list):
 def get_fixtures_today():
     return get_fixtures_by_date(str(date.today()))
 
-@app.get("/fixtures/{fixture_date}")
+@app.get("/fixtures/{fixture_date}", response_model=List[FixtureOut])
 def get_fixtures_by_date(fixture_date: str):
     cached = get_fixtures_from_cache(fixture_date)
     if cached:
@@ -85,7 +85,7 @@ def get_fixtures_by_date(fixture_date: str):
         # Cache in Redis
         set_fixtures_to_cache(fixture_date, [f.dict() for f in fixtures_out])
 
-        return {"raw": fixtures}   # skip validation
+        return fixtures_out
 
     except Exception as e:
         return JSONResponse(content={"error": str(e)}, status_code=500)

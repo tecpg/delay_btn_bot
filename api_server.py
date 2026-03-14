@@ -49,7 +49,7 @@ def set_fixtures_to_cache(fixture_date: str, fixtures: list):
 def get_fixtures_today():
     return get_fixtures_by_date(str(date.today()))
 
-@app.get("/fixtures/{fixture_date}", response_model=List[FixtureOut])
+@app.get("/fixtures/{fixture_date}")
 def get_fixtures_by_date(fixture_date: str):
     cached = get_fixtures_from_cache(fixture_date)
     if cached:

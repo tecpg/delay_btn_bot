@@ -85,11 +85,11 @@ def get_fixtures_by_date(fixture_date: str):
         cursor = conn.cursor(dictionary=True)
         cursor.execute("""
             SELECT fixture_id, league, league_logo, home_team, home_logo,
-                   away_team, away_logo, match_time, `date`, prediction, odd,
+                   away_team, away_logo, match_time, date, prediction, odd,
                    home_score, away_score, status, source, last_updated
             FROM pro_tips
             WHERE `date` = %s
-            ORDER BY match_time ASC
+            ORDER BY match_time DESC
         """, (fixture_date,))
         fixtures = cursor.fetchall()
 

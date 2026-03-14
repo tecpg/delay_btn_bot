@@ -77,13 +77,62 @@ def get_fixtures_by_date(fixture_date: str):
     if cached:
         return cached
 
+    conn = None
+    cursor = None
+
+    try:
+        conn = get_db()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("""
+            SELECT fixture_id, league, league_logo, home_team, home_logo,
+                   away_team, away_logo, match_time, `date`, prediction, odd,
+                   home_score, away_score, status, source, last_updated
+            FROM pro_tips
+            WHERE `date` = %s
+            ORDER BY match_time ASC
+        """, (fixture_date,))
+        fixtures = cursor.fetchall()
+
+        # Safely handle NULL/empty values
+        for f in fixtures:
+            f["home_score"] = str(f.get("home_score") or "")
+            f["away_score"] = str(f.get("away_score") or "")
+            f["status"] = str(f.get("status") or "")
+            f["match_time"] = str(f.get("match_time") or "")
+            f["date"] = str(f.get("date") or "")
+            f["league_logo"] = f.get("league_logo") or ""
+            f["home_logo"] = f.get("home_logo") or ""
+            f["away_logo"] = f.get("away_logo") or ""
+            f["prediction"] = f.get("prediction") or ""
+            f["odd"] = f.get("odd") or ""
+            f["source"] = f.get("source") or ""
+            f["last_updated"] = f["last_updated"].strftime("%Y-%m-%dT%H:%M:%S") if f.get("last_updated") else ""
+
+        # Save to Redis
+        set_fixtures_to_cache(fixture_date, fixtures)
+
+        return fixtures
+
+    except Exception as e:
+        return JSONResponse(content={"error": str(e)}, status_code=500)
+
+    finally:
+        if cursor:
+            cursor.close()
+        if conn and conn.is_connected():
+            conn.close()
+    # Check Redis cache
+    cached = get_fixtures_from_cache(fixture_date)
+    if cached:
+        return cached
+
     try:
         conn = get_db()
         cursor = conn.cursor(dictionary=True)
         cursor.execute("""
             SELECT fixture_id, league, league_logo, home_team, home_logo,
                    away_team, away_logo, match_time, date, prediction, odd, home_score,
-                       away_score, status,source,
+                       away_score, status, source,
                         last_updated
             FROM pro_tips
             WHERE date = %s

@@ -12,6 +12,16 @@ from typing import Dict, Any
 import json
 import httpx
 
+import os
+
+import redis
+import json
+from datetime import date
+import requests
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.interval import IntervalTrigger
+from datetime import datetime
+
 app = FastAPI(title="Match Fixtures API")
 
 REDIS_URL = kbt_load_env.redis_url
@@ -273,3 +283,121 @@ def clear_cache(fixture_date: str):
     cache_key = f"fixtures:{fixture_date}"
     deleted = redis_client.delete(cache_key)
     return {"message": f"Cache for {fixture_date} cleared", "deleted": deleted > 0}
+
+
+# Scheduler (global)
+scheduler = BackgroundScheduler()
+
+
+# ────────────────────────────────────────────────
+# Background job: refresh only currently live matches
+# ────────────────────────────────────────────────
+def refresh_live_predictions():
+    conn = None
+    cursor = None
+    try:
+        conn = get_db()
+        cursor = conn.cursor(dictionary=True)
+
+        cursor.execute("""
+            SELECT fixture_id, `date`, status
+            FROM pro_tips
+            WHERE `date` = CURDATE()
+              AND status IN ('1H', 'HT', '2H', 'ET', 'BT', 'P', 'LIVE', 'SUSP', 'INT')
+        """)
+        live_rows = cursor.fetchall()
+
+        if not live_rows:
+            print(f"No live matches to refresh at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            return
+
+        print(f"Refreshing {len(live_rows)} live matches at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
+        for row in live_rows:
+            fid = row['fixture_id']
+            try:
+                r = requests.get(
+                    f"https://v3.football.api-sports.io/fixtures?id={fid}",
+                    headers=HEADERS,
+                    timeout=10
+                )
+                r.raise_for_status()
+                api_data = r.json()
+
+                if not api_data.get("response"):
+                    print(f"No response for fixture {fid}")
+                    continue
+
+                fixture = api_data["response"][0]
+                new_home = fixture["goals"]["home"]
+                new_away = fixture["goals"]["away"]
+                new_status = fixture["fixture"]["status"]["short"]
+
+                cursor.execute("""
+                    UPDATE pro_tips
+                    SET home_score = %s,
+                        away_score = %s,
+                        status = %s,
+                        last_updated = NOW()
+                    WHERE fixture_id = %s
+                """, (new_home, new_away, new_status, fid))
+
+                # Invalidate Redis cache for that date
+                redis_client.delete(f"fixtures:{row['date']}")
+
+                print(f"Updated fixture {fid}: {new_home}-{new_away} ({new_status})")
+
+            except requests.exceptions.RequestException as req_err:
+                print(f"API request failed for fixture {fid}: {req_err}")
+            except Exception as e:
+                print(f"Unexpected error refreshing fixture {fid}: {e}")
+
+        conn.commit()
+
+    except Exception as e:
+        print(f"Error in refresh_live_predictions: {e}")
+    finally:
+        if cursor:
+            cursor.close()
+        if conn and conn.is_connected():
+            conn.close()
+
+# Schedule the job
+scheduler.add_job(
+    refresh_live_predictions,
+    trigger=IntervalTrigger(seconds=60),
+    id='live_refresh',
+    name='Refresh live football predictions',
+    replace_existing=True
+)
+
+# Start scheduler when FastAPI starts
+@app.on_event("startup")
+async def startup_event():
+    if not scheduler.running:
+        scheduler.start()
+        print("Live match auto-refresh scheduler started (every 60 seconds)")
+
+# Optional: clean shutdown
+@app.on_event("shutdown")
+def shutdown_event():
+    if scheduler.running:
+        scheduler.shutdown(wait=False)
+        print("Scheduler stopped")
+
+# Your existing endpoints go here (examples)
+@app.get("/fixtures/today")
+def get_fixtures_today():
+    # Your existing logic...
+    pass
+
+# ... other routes ...
+
+# Optional health check endpoint
+@app.get("/health")
+def health():
+    return {
+        "status": "healthy",
+        "scheduler_running": scheduler.running,
+        "utc_time": datetime.utcnow().isoformat()
+    }

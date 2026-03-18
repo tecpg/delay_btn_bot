@@ -6,152 +6,131 @@ import mysql.connector
 import redis
 import json
 from datetime import date
-import kbt_funtions  # your existing DB connection helper
+import kbt_funtions
 import kbt_load_env
+import requests  # ← add this import
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.interval import IntervalTrigger
 
 app = FastAPI(title="Match Fixtures API")
 
-# -----------------------------
-# Connect to Redis
-# -----------------------------
+# Redis
 REDIS_URL = kbt_load_env.redis_url
-redis_client = redis.from_url(REDIS_URL, decode_responses=True)  # decode_responses=True returns strings
+redis_client = redis.from_url(REDIS_URL, decode_responses=True)
+CACHE_TTL = 24 * 60 * 60  # 24 hours default
 
-CACHE_TTL = 24 * 60 * 60  # 24 hours cache
+# API-Football
+API_KEY = kbt_load_env.api_football_key
+HEADERS = {"x-apisports-key": API_KEY}
 
-# ---------------------------
-# Pydantic Model
-# ---------------------------
-from pydantic import BaseModel
+# Scheduler (global)
+scheduler = BackgroundScheduler()
 
-class FixtureOut(BaseModel):
-    fixture_id: int
-    league: str
-    league_logo: Optional[str]
-    home_team: str
-    home_logo: Optional[str]
-    away_team: str
-    away_logo: Optional[str]
-    match_time: str  # "HH:MM:SS"
-    date: str        # "YYYY-MM-DD"
-    prediction: Optional[str]
-    odd: str
-    source: Optional[str]
-    last_updated: Optional[str]
-
-# ---------------------------
-# DB Connection Helper
-# ---------------------------
 def get_db():
     return kbt_funtions.db_connection()
 
-# ---------------------------
-# Redis Helpers
-# ---------------------------
-def get_fixtures_from_cache():
-    cache_key = f"fixtures:{date.today()}"
-    cached = redis_client.get(cache_key)
-    if cached:
-        return json.loads(cached)
-    return None
-
-def set_fixtures_to_cache(fixtures):
-    cache_key = f"fixtures:{date.today()}"
-    redis_client.setex(cache_key, CACHE_TTL, json.dumps(fixtures))
-
-# ---------------------------
-# API Endpoint
-# ---------------------------
-@app.get("/fixtures/today", response_model=List[FixtureOut])
-def get_fixtures_today():
-    # 1️⃣ Try Redis cache first
-    cached = get_fixtures_from_cache()
-    if cached:
-        return cached
-
-    # 2️⃣ Cache miss → fetch from MySQL
+# ────────────────────────────────────────────────
+# Background job: refresh only currently live matches
+# ────────────────────────────────────────────────
+def refresh_live_predictions():
+    conn = None
+    cursor = None
     try:
         conn = get_db()
         cursor = conn.cursor(dictionary=True)
+
+        # Only matches that are live *today*
         cursor.execute("""
-            SELECT fixture_id, league, league_logo, home_team, home_logo,
-                   away_team, away_logo, match_time, date, prediction, odd, source, last_updated
+            SELECT fixture_id, `date`, status
             FROM pro_tips
-            WHERE date = CURDATE()
-            ORDER BY match_time ASC
+            WHERE `date` = CURDATE()
+              AND status IN ('1H', 'HT', '2H', 'ET', 'BT', 'P', 'LIVE', 'SUSP', 'INT')
         """)
-        fixtures = cursor.fetchall()
+        live_rows = cursor.fetchall()
 
-        # 3️⃣ Ensure match_time is string
-        for f in fixtures:
-            if f.get("match_time") is not None:
-                # Already stored as string in DB → keep as-is
-                f["match_time"] = str(f["match_time"])
-            if f.get("date") is not None:
-                f["date"] = str(f["date"])
-            if f.get("last_updated") is not None:
-                f["last_updated"] = f["last_updated"].strftime("%Y-%m-%dT%H:%M:%S")
+        if not live_rows:
+            print(f"No live matches to refresh at {date.today()}")
+            return
 
-        # 4️⃣ Save to Redis
-        set_fixtures_to_cache(fixtures)
+        print(f"Refreshing {len(live_rows)} live matches at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
-        return fixtures
+        for row in live_rows:
+            fid = row['fixture_id']
+            try:
+                r = requests.get(
+                    f"https://v3.football.api-sports.io/fixtures?id={fid}",
+                    headers=HEADERS,
+                    timeout=10
+                )
+                r.raise_for_status()
+                api_data = r.json()
 
+                if not api_data.get("response"):
+                    print(f"No response for fixture {fid}")
+                    continue
+
+                fixture = api_data["response"][0]
+                new_home = fixture["goals"]["home"]
+                new_away = fixture["goals"]["away"]
+                new_status = fixture["fixture"]["status"]["short"]
+
+                cursor.execute("""
+                    UPDATE pro_tips
+                    SET home_score = %s,
+                        away_score = %s,
+                        status = %s,
+                        last_updated = NOW()
+                    WHERE fixture_id = %s
+                """, (new_home, new_away, new_status, fid))
+
+                # Invalidate Redis cache for that date
+                redis_client.delete(f"fixtures:{row['date']}")
+
+                print(f"Updated fixture {fid}: {new_home}-{new_away} ({new_status})")
+
+            except requests.exceptions.RequestException as req_err:
+                print(f"API request failed for fixture {fid}: {req_err}")
+            except Exception as e:
+                print(f"Unexpected error refreshing fixture {fid}: {e}")
+
+        conn.commit()
+
+    except mysql.connector.Error as mysql_err:
+        print(f"MySQL error during live refresh: {mysql_err}")
     except Exception as e:
-        return JSONResponse(content={"error": str(e)}, status_code=500)
-
+        print(f"General error in refresh_live_predictions: {e}")
     finally:
         if cursor:
             cursor.close()
         if conn and conn.is_connected():
             conn.close()
 
+# Schedule it
+scheduler.add_job(
+    refresh_live_predictions,
+    trigger=IntervalTrigger(seconds=60),
+    id='live_predictions_refresh',
+    name='Refresh live football predictions',
+    replace_existing=True
+)
 
-@app.get("/fixtures/{fixture_date}", response_model=List[FixtureOut])
-def get_fixtures_by_date(fixture_date: str):
+# Start scheduler on app startup
+@app.on_event("startup")
+async def startup_event():
+    if not scheduler.running:
+        scheduler.start()
+        print("Live predictions auto-refresh scheduler started (every 60 seconds)")
 
-    cache_key = f"fixtures:{fixture_date}"
+# Clean shutdown (optional but good practice)
+@app.on_event("shutdown")
+def shutdown_event():
+    if scheduler.running:
+        scheduler.shutdown(wait=False)
+        print("Live refresh scheduler stopped")
 
-    # 1️⃣ Check Redis cache
-    cached = redis_client.get(cache_key)
-    if cached:
-        return json.loads(cached)
+# Your other endpoints go here...
+# e.g. /fixtures/today, /fixtures/{date}, etc.
 
-    try:
-        conn = get_db()
-        cursor = conn.cursor(dictionary=True)
-
-        cursor.execute("""
-            SELECT fixture_id, league, league_logo, home_team, home_logo,
-                   away_team, away_logo, match_time, date, prediction, odd, source, last_updated
-            FROM pro_tips
-            WHERE date = %s
-            ORDER BY match_time ASC
-        """, (fixture_date,))
-
-        fixtures = cursor.fetchall()
-
-        # Format fields
-        for f in fixtures:
-            if f.get("match_time") is not None:
-                f["match_time"] = str(f["match_time"])
-
-            if f.get("date") is not None:
-                f["date"] = str(f["date"])
-
-            if f.get("last_updated") is not None:
-                f["last_updated"] = f["last_updated"].strftime("%Y-%m-%dT%H:%M:%S")
-
-        # 2️⃣ Save to Redis cache
-        redis_client.setex(cache_key, CACHE_TTL, json.dumps(fixtures))
-
-        return fixtures
-
-    except Exception as e:
-        return JSONResponse(content={"error": str(e)}, status_code=500)
-
-    finally:
-        if cursor:
-            cursor.close()
-        if conn and conn.is_connected():
-            conn.close()
+@app.get("/health")
+def health():
+    return {"status": "ok", "live_scheduler_running": scheduler.running}

@@ -292,6 +292,7 @@ scheduler = BackgroundScheduler()
 # ────────────────────────────────────────────────
 # Background job: refresh only currently live matches
 # ────────────────────────────────────────────────
+
 def refresh_live_predictions():
     conn = None
     cursor = None
@@ -299,10 +300,7 @@ def refresh_live_predictions():
         conn = get_db()
         cursor = conn.cursor(dictionary=True)
 
-        # Refresh matches that are:
-        # - Already live (any status in the live list)
-        # - OR still NS but kick-off time is within next 45 minutes
-        # - All on today's date
+        # Query: live OR soon-to-start
         cursor.execute("""
             SELECT fixture_id, `date`, status, match_time
             FROM pro_tips
@@ -324,9 +322,12 @@ def refresh_live_predictions():
 
         print(f"Refreshing {len(rows_to_refresh)} matches (live or soon-to-start) at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
+        updated_count = 0
+
         for row in rows_to_refresh:
             fid = row['fixture_id']
             current_status = row['status']
+
             try:
                 r = requests.get(
                     f"https://v3.football.api-sports.io/fixtures?id={fid}",
@@ -341,42 +342,68 @@ def refresh_live_predictions():
                     continue
 
                 fixture = api_data["response"][0]
-                new_home  = fixture["goals"]["home"]
-                new_away  = fixture["goals"]["away"]
-                new_status = fixture["fixture"]["status"]["short"]
-                new_match_time = fixture["fixture"]["date"]  # full ISO datetime
 
-                # Update MySQL
+                # Safely get scores (None or missing → 0)
+                goals = fixture.get("goals", {})
+                new_home = goals.get("home")
+                new_away = goals.get("away")
+
+                new_home = 0 if new_home is None else int(new_home)
+                new_away = 0 if new_away is None else int(new_away)
+
+                new_status = fixture["fixture"]["status"]["short"]
+
+                # Execute update
                 cursor.execute("""
                     UPDATE pro_tips
                     SET home_score = %s,
                         away_score = %s,
-                        status     = %s,
+                        status = %s,
                         last_updated = NOW()
-                        -- Optionally update match_time if you want to sync it
-                        -- match_time = TIME(%s)
                     WHERE fixture_id = %s
                 """, (new_home, new_away, new_status, fid))
-                # If you want to sync time too: , TIME(new_match_time)
 
-                # Invalidate Redis for the date
-                redis_client.delete(f"fixtures:{row['date']}")
+                updated_count += cursor.rowcount
 
-                # Log status change if it happened
+                # Invalidate Redis
+                if row['date']:
+                    redis_client.delete(f"fixtures:{row['date']}")
+
+                # Log meaningful changes
+                changed = False
+                log_parts = []
                 if current_status != new_status:
-                    print(f"Status changed for {fid}: {current_status} → {new_status}  ({new_home}-{new_away})")
+                    log_parts.append(f"status {current_status} → {new_status}")
+                    changed = True
+                if row.get('home_score') != new_home:
+                    log_parts.append(f"home {row.get('home_score')} → {new_home}")
+                    changed = True
+                if row.get('away_score') != new_away:
+                    log_parts.append(f"away {row.get('away_score')} → {new_away}")
+                    changed = True
+
+                if changed:
+                    print(f"Updated fixture {fid}: {new_home}-{new_away} ({new_status})  [{', '.join(log_parts)}]")
                 else:
-                    print(f"Refreshed fixture {fid}: {new_home}-{new_away} ({new_status})")
+                    print(f"No change for fixture {fid} ({new_status})")
 
             except requests.exceptions.RequestException as req_err:
                 print(f"API request failed for fixture {fid}: {req_err}")
+            except mysql.connector.Error as mysql_err:
+                print(f"MySQL error for fixture {fid}: {mysql_err}")
+            except ValueError as ve:
+                print(f"Value conversion error for fixture {fid}: {ve}")
             except Exception as e:
-                print(f"Unexpected error refreshing fixture {fid}: {e}")
+                print(f"Unexpected error refreshing fixture {fid}: {type(e).__name__}: {e}")
 
+        # Commit all updates at once
         conn.commit()
+        print(f"Batch commit complete – {updated_count} rows affected")
 
     except Exception as e:
-        print(f"Error in refresh_live_predictions: {e}")
+        print(f"Critical error in refresh_live_predictions: {e}")
+        if conn:
+            conn.rollback()
     finally:
         if cursor:
             cursor.close()

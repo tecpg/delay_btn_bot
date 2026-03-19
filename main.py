@@ -40,10 +40,10 @@ def refresh_live_predictions():
         cursor.execute("""
          SELECT fixture_id, date
   FROM pro_tips
- WHERE fixture_datetime IS NOT NULL
+ WHERE match_time IS NOT NULL
   AND (date + match_time AT TIME ZONE 'Africa/Lagos') BETWEEN
     NOW() - INTERVAL '3 hours' AND NOW() + INTERVAL '3 hours'
- ORDER BY fixture_datetime
+ ORDER BY match_time
  LIMIT 20
 FOR UPDATE SKIP LOCKED
         """)

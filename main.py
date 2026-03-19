@@ -45,7 +45,7 @@ SELECT fixture_id, date
         OR last_updated < NOW() - INTERVAL '70 seconds')
    AND (date + match_time AT TIME ZONE 'Africa/Lagos') BETWEEN 
            NOW() - INTERVAL '3 hours'          -- Covers full matches + delays/postponed
-           AND NOW() + INTERVAL '45 minutes'   -- Only poll upcoming if close (adjust 45–90 min)
+           AND NOW() + INTERVAL '75 minutes'   -- Only poll upcoming if close (adjust 45–90 min)
    AND (
        -- Prefer live/in-play first (these change fast)
        status IN ('1H', 'HT', '2H', 'ET', 'BT', 'P', 'S')   -- API-Football in-play codes

@@ -1,33 +1,36 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
+from pydantic import BaseModel
 import mysql.connector
 import redis
 import json
-from datetime import date
-import kbt_funtions
-import kbt_load_env
-from pydantic import BaseModel, parse_obj_as
-from typing import Dict, Any
-import json
 import httpx
-
-import os
-
-import redis
-import json
-from datetime import date
-import requests
+import asyncio
+from datetime import date, datetime
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
-from datetime import datetime
 
+import kbt_funtions
+import kbt_load_env
+
+# ────────────────────────────────────────────────
+# APP INIT
+# ────────────────────────────────────────────────
 app = FastAPI(title="Match Fixtures API")
 
-REDIS_URL = kbt_load_env.redis_url
-redis_client = redis.from_url(REDIS_URL, decode_responses=True)
-CACHE_TTL = 7 * 24 * 60 * 60  # 7 days
+redis_client = redis.from_url(kbt_load_env.redis_url, decode_responses=True)
 
+BASE_URL = "https://v3.football.api-sports.io"
+HEADERS = {"x-apisports-key": kbt_load_env.api_football_key}
+
+CACHE_TTL = 7 * 24 * 60 * 60
+CACHE_TTL_SHORT = 3600
+CACHE_TTL_LONG = 86400 * 3
+
+# ────────────────────────────────────────────────
+# MODELS
+# ────────────────────────────────────────────────
 class FixtureOut(BaseModel):
     fixture_id: int
     league: str
@@ -40,393 +43,269 @@ class FixtureOut(BaseModel):
     date: str
     prediction: Optional[str] = None
     odd: str
-    home_score: Optional[str] = None      # ← add = None
-    away_score: Optional[str] = None      # ← add = None
-    status: Optional[str] = None          # ← add = None
+    home_score: Optional[str] = None
+    away_score: Optional[str] = None
+    status: Optional[str] = None
     source: Optional[str] = None
     last_updated: Optional[str] = None
 
+# ────────────────────────────────────────────────
+# DB
+# ────────────────────────────────────────────────
 def get_db():
     return kbt_funtions.db_connection()
 
+# ────────────────────────────────────────────────
+# CACHE HELPERS
+# ────────────────────────────────────────────────
 def get_fixtures_from_cache(fixture_date: str):
     cached = redis_client.get(f"fixtures:{fixture_date}")
-    if cached:
-        return json.loads(cached)
-    return None
-from datetime import date, timedelta
+    return json.loads(cached) if cached else None
 
 def set_fixtures_to_cache(fixture_date: str, fixtures: list):
-    cache_key = f"fixtures:{fixture_date}"
-    
     try:
         match_date = date.fromisoformat(fixture_date)
-        today = date.today()
-        days_old = (today - match_date).days
-        
-        if days_old > 7:          # very old matches – rarely change
-            ttl = 24 * 60 * 60          # 1 day
-        elif days_old >= 0:       # today or past
-            ttl = 60 * 60               # 1 hour (scores usually final after FT)
-        else:                     # future matches
-            ttl = 7 * 24 * 60 * 60      # your original 7 days
-    except ValueError:
-        ttl = CACHE_TTL  # fallback if date parsing fails
-    
-    redis_client.setex(cache_key, ttl, json.dumps(fixtures))
+        days_old = (date.today() - match_date).days
 
-@app.get("/fixtures/today", response_model=List[FixtureOut])
-def get_fixtures_today():
-    return get_fixtures_by_date(str(date.today()))
+        if days_old > 7:
+            ttl = 86400
+        elif days_old >= 0:
+            ttl = 3600
+        else:
+            ttl = CACHE_TTL
+    except:
+        ttl = CACHE_TTL
 
+    redis_client.setex(f"fixtures:{fixture_date}", ttl, json.dumps(fixtures))
+
+# ────────────────────────────────────────────────
+# FIXTURES ENDPOINT
+# ────────────────────────────────────────────────
 @app.get("/fixtures/{fixture_date}", response_model=List[FixtureOut])
 def get_fixtures_by_date(fixture_date: str):
     cached = get_fixtures_from_cache(fixture_date)
     if cached:
-        return parse_obj_as(List[FixtureOut], cached)
+        return [FixtureOut(**f) for f in cached]
 
-    conn = None
-    cursor = None
+    conn, cursor = None, None
     try:
         conn = get_db()
         cursor = conn.cursor(dictionary=True)
+
         cursor.execute("""
-            SELECT fixture_id, league, league_logo, home_team, home_logo,
-                   away_team, away_logo, match_time, date, prediction, odd,
-                   home_score, away_score, status, source, last_updated
-            FROM pro_tips
+            SELECT * FROM pro_tips
             WHERE `date` = %s
             ORDER BY match_time DESC
         """, (fixture_date,))
+
         fixtures = cursor.fetchall()
 
-        # Normalize types for Pydantic
         for f in fixtures:
-            for key in ["home_score", "away_score", "status", "prediction", "source",
-                        "league_logo", "home_logo", "away_logo", "odd", "match_time", "date"]:
-                if f.get(key) is not None:
+            for key in f:
+                if f[key] is not None:
                     f[key] = str(f[key])
-            if f.get("last_updated") and hasattr(f["last_updated"], "strftime"):
-                f["last_updated"] = f["last_updated"].strftime("%Y-%m-%dT%H:%M:%S")
 
-        # Validate with Pydantic (ensures response matches model)
-        fixtures_out = parse_obj_as(List[FixtureOut], fixtures)
+        fixtures_out = [FixtureOut(**f) for f in fixtures]
 
-        # Cache in Redis
         set_fixtures_to_cache(fixture_date, [f.dict() for f in fixtures_out])
-
         return fixtures_out
 
     except Exception as e:
         return JSONResponse(content={"error": str(e)}, status_code=500)
 
     finally:
-        if cursor:
-            cursor.close()
-        if conn and conn.is_connected():
-            conn.close()
+        if cursor: cursor.close()
+        if conn and conn.is_connected(): conn.close()
 
-BASE_URL = "https://v3.football.api-sports.io"
-HEADERS = {"x-apisports-key": kbt_load_env.api_football_key}
-
-CACHE_TTL_SHORT = 3600      # 1 hour for live/recent
-CACHE_TTL_LONG  = 86400 * 3 # 3 days for finished matches
-
-def get_db():
-    return kbt_funtions.db_connection()
-
+# ────────────────────────────────────────────────
+# FIXTURE DETAILS (ASYNC + PARALLEL)
+# ────────────────────────────────────────────────
 @app.get("/fixture-details/{fixture_id}")
 async def get_fixture_details(fixture_id: int):
     cache_key = f"fixture_full:{fixture_id}"
+
     cached = redis_client.get(cache_key)
     if cached:
         return json.loads(cached)
 
+    # Check DB
     conn = get_db()
-    try:
-        cursor = conn.cursor(dictionary=True)
-        cursor.execute("""
-            SELECT full_json, status_short
-            FROM fixture_details
-            WHERE fixture_id = %s
-        """, (fixture_id,))
-        row = cursor.fetchone()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT full_json, status_short FROM fixture_details WHERE fixture_id = %s", (fixture_id,))
+    row = cursor.fetchone()
+    cursor.close()
+    conn.close()
 
-        if row:
-            data = json.loads(row["full_json"])
-            # Optional: check freshness based on status
-            redis_client.setex(cache_key, CACHE_TTL_LONG if row["status_short"] in ["FT", "AET", "PEN"] else CACHE_TTL_SHORT, json.dumps(data))
-            return data
+    if row:
+        data = json.loads(row["full_json"])
+        ttl = CACHE_TTL_LONG if row["status_short"] in ["FT","AET","PEN"] else CACHE_TTL_SHORT
+        redis_client.setex(cache_key, ttl, json.dumps(data))
+        return data
 
-    finally:
-        cursor.close()
-        conn.close()
-
-    # Miss → fetch from API-Football
-    async with httpx.AsyncClient() as client:
+    # Fetch API
+    async with httpx.AsyncClient(timeout=10) as client:
         try:
-            # 1. Fixture main data
-            fixture_resp = await client.get(f"{BASE_URL}/fixtures?id={fixture_id}", headers=HEADERS, timeout=12)
+            fixture_resp = await client.get(f"{BASE_URL}/fixtures?id={fixture_id}", headers=HEADERS)
             fixture_resp.raise_for_status()
-            fixture_data = fixture_resp.json()
-            if not fixture_data.get("response"):
-                raise HTTPException(404, "Fixture not found")
-            fixture = fixture_data["response"][0]
 
-            league_id = fixture["league"]["id"]
-            season = fixture["league"]["season"]
-            home_id = fixture["teams"]["home"]["id"]
-            away_id = fixture["teams"]["away"]["id"]
+            fixture_data = fixture_resp.json()["response"][0]
 
-            result: Dict[str, Any] = {
+            league_id = fixture_data["league"]["id"]
+            season = fixture_data["league"]["season"]
+            home_id = fixture_data["teams"]["home"]["id"]
+            away_id = fixture_data["teams"]["away"]["id"]
+
+            # PARALLEL CALLS
+            lineup_task = client.get(f"{BASE_URL}/fixtures/lineups?fixture={fixture_id}", headers=HEADERS)
+            stats_task = client.get(f"{BASE_URL}/fixtures/statistics?fixture={fixture_id}", headers=HEADERS)
+            odds_task = client.get(f"{BASE_URL}/odds?fixture={fixture_id}&bookmaker=1", headers=HEADERS)
+
+            lineup_resp, stats_resp, odds_resp = await asyncio.gather(
+                lineup_task, stats_task, odds_task
+            )
+
+            result = {
                 "fixture": {
                     "fixture_id": fixture_id,
-                    "home_team": fixture["teams"]["home"]["name"],
-                    "away_team": fixture["teams"]["away"]["name"],
-                    "date": fixture["fixture"]["date"],
-                    "status": fixture["fixture"]["status"]["short"],
-                    "score": fixture["goals"],
+                    "home_team": fixture_data["teams"]["home"]["name"],
+                    "away_team": fixture_data["teams"]["away"]["name"],
+                    "date": fixture_data["fixture"]["date"],
+                    "status": fixture_data["fixture"]["status"]["short"],
+                    "score": fixture_data["goals"],
                 }
             }
 
-            # 2. Lineups
-            lineup_resp = await client.get(f"{BASE_URL}/fixtures/lineups?fixture={fixture_id}", headers=HEADERS)
-            lineups = []
-            for team in lineup_resp.json().get("response", []):
-                lineups.append({
-                    "team_name": team["team"]["name"],
-                    "formation": team.get("formation"),
-                    "coach": team.get("coach", {}).get("name"),
-                    "starters": [p["player"]["name"] for p in team.get("startXI", [])],
-                    "substitutes": [p["player"]["name"] for p in team.get("substitutes", [])],
-                })
-            result["lineups"] = lineups
+            # Lineups
+            result["lineups"] = [
+                {
+                    "team": t["team"]["name"],
+                    "formation": t.get("formation"),
+                }
+                for t in lineup_resp.json().get("response", [])
+            ]
 
-            # 3. Standings
-            stand_resp = await client.get(f"{BASE_URL}/standings?league={league_id}&season={season}", headers=HEADERS)
-            standings_data = stand_resp.json().get("response", [])
-            home_standing = away_standing = None
-            if standings_data:
-                table = standings_data[0]["league"]["standings"][0]
-                home_standing = next((t for t in table if t["team"]["id"] == home_id), None)
-                away_standing = next((t for t in table if t["team"]["id"] == away_id), None)
-            result["standings"] = {
-                "home_team": {"rank": home_standing["rank"] if home_standing else None, "points": home_standing["points"] if home_standing else None},
-                "away_team": {"rank": away_standing["rank"] if away_standing else None, "points": away_standing["points"] if away_standing else None},
+            # Stats
+            result["statistics"] = {
+                t["team"]["name"]: {s["type"]: s["value"] for s in t["statistics"]}
+                for t in stats_resp.json().get("response", [])
             }
 
-            # 4. Head-to-Head (last 5)
-            h2h_resp = await client.get(f"{BASE_URL}/fixtures/headtohead?h2h={home_id}-{away_id}", headers=HEADERS)
-            h2h = []
-            for m in h2h_resp.json().get("response", [])[:5]:
-                h2h.append({
-                    "date": m["fixture"]["date"],
-                    "home_team": m["teams"]["home"]["name"],
-                    "away_team": m["teams"]["away"]["name"],
-                    "home_goals": m["goals"]["home"],
-                    "away_goals": m["goals"]["away"],
-                })
-            result["h2h"] = h2h
-
-            # 5. Odds (1X2 from bookmaker 1)
-            odds_resp = await client.get(f"{BASE_URL}/odds?fixture={fixture_id}&bookmaker=1", headers=HEADERS)
+            # Odds
             odds = {"home": None, "draw": None, "away": None}
-            if odds_resp.json().get("response"):
-                try:
-                    vals = odds_resp.json()["response"][0]["bookmakers"][0]["bets"][0]["values"]
-                    odds = {v["value"].lower(): v["odd"] for v in vals if v["value"] in ["Home", "Draw", "Away"]}
-                except:
-                    pass
+            try:
+                vals = odds_resp.json()["response"][0]["bookmakers"][0]["bets"][0]["values"]
+                odds = {v["value"].lower(): v["odd"] for v in vals}
+            except:
+                pass
+
             result["odds"] = odds
 
-            # 6. Statistics
-            stats_resp = await client.get(f"{BASE_URL}/fixtures/statistics?fixture={fixture_id}", headers=HEADERS)
-            stats = {}
-            for team in stats_resp.json().get("response", []):
-                team_name = team["team"]["name"]
-                stats[team_name] = {s["type"]: s["value"] for s in team.get("statistics", [])}
-            result["statistics"] = stats
-
-            # Store in DB
+            # Save DB
             conn = get_db()
             cursor = conn.cursor()
-            json_str = json.dumps(result)
+
             cursor.execute("""
                 INSERT INTO fixture_details (fixture_id, league_id, season, home_team_id, away_team_id, full_json, status_short)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
-                ON DUPLICATE KEY UPDATE 
-                    full_json = VALUES(full_json),
-                    status_short = VALUES(status_short),
-                    last_updated = CURRENT_TIMESTAMP
-            """, (fixture_id, league_id, season, home_id, away_id, json_str, result["fixture"]["status"]))
+                VALUES (%s,%s,%s,%s,%s,%s,%s)
+                ON DUPLICATE KEY UPDATE full_json=VALUES(full_json), status_short=VALUES(status_short)
+            """, (
+                fixture_id, league_id, season, home_id, away_id,
+                json.dumps(result), result["fixture"]["status"]
+            ))
+
             conn.commit()
             cursor.close()
             conn.close()
 
-            # Cache
-            ttl = CACHE_TTL_SHORT if result["fixture"]["status"] not in ["FT", "AET", "PEN"] else CACHE_TTL_LONG
+            ttl = CACHE_TTL_SHORT if result["fixture"]["status"] not in ["FT","AET","PEN"] else CACHE_TTL_LONG
             redis_client.setex(cache_key, ttl, json.dumps(result))
 
             return result
 
-        except httpx.HTTPStatusError as exc:
-            raise HTTPException(status_code=exc.response.status_code, detail=str(exc))
-        except Exception as exc:
-            raise HTTPException(status_code=500, detail=f"Internal error: {str(exc)}")
-        
+        except Exception as e:
+            raise HTTPException(500, str(e))
 
-
-# Add a manual cache-clear endpoint (useful for admin/debug)
-# Call it with POST /admin/clear-cache/2026-03-11 when you know results have been updated.
+# ────────────────────────────────────────────────
+# CACHE CLEAR
+# ────────────────────────────────────────────────
 @app.post("/admin/clear-cache/{fixture_date}")
 def clear_cache(fixture_date: str):
-    cache_key = f"fixtures:{fixture_date}"
-    deleted = redis_client.delete(cache_key)
-    return {"message": f"Cache for {fixture_date} cleared", "deleted": deleted > 0}
+    deleted = redis_client.delete(f"fixtures:{fixture_date}")
+    return {"deleted": bool(deleted)}
 
-
-# Scheduler (global)
+# ────────────────────────────────────────────────
+# SCHEDULER
+# ────────────────────────────────────────────────
 scheduler = BackgroundScheduler()
 
-
-# ────────────────────────────────────────────────
-# Background job: refresh only currently live matches
-# ────────────────────────────────────────────────
-
 def refresh_live_predictions():
-    conn = None
-    cursor = None
-    try:
-        conn = get_db()
-        cursor = conn.cursor(dictionary=True)
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
 
-        # This query catches:
-        #   - Already live matches
-        #   - OR matches that are NS but kick-off is within next 45 minutes
-        cursor.execute("""
-            SELECT fixture_id, `date`, status, match_time
-            FROM pro_tips
-            WHERE `date` = CURDATE()
-              AND (
-                  status IN ('1H', 'HT', '2H', 'ET', 'BT', 'P', 'LIVE', 'SUSP', 'INT')
-                  OR (
-                      status = 'NS'
-                      AND match_time IS NOT NULL
-                      AND match_time <= ADDTIME(CURRENT_TIME(), '00:45:00')
-                  )
-              )
-        """)
-        rows_to_refresh = cursor.fetchall()
+    cursor.execute("""
+        SELECT fixture_id, `date`
+        FROM pro_tips
+        WHERE `date` = CURDATE()
+        AND last_updated < NOW() - INTERVAL 30 SECOND
+        AND status IN ('1H','HT','2H','LIVE')
+        LIMIT 10
+    """)
 
-        if not rows_to_refresh:
-            print(f"No matches need refresh at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-            return
+    rows = cursor.fetchall()
+    if not rows:
+        return
 
-        print(f"Refreshing {len(rows_to_refresh)} matches (live or soon-to-start) at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    deleted_dates = set()
 
-        updated_count = 0
-
-        for row in rows_to_refresh:
-            fid = row['fixture_id']
-            current_status = row.get('status')
-            current_match_time = row.get('match_time')
-
+    with httpx.Client(timeout=10) as client:
+        for row in rows:
             try:
-                r = requests.get(
-                    f"https://v3.football.api-sports.io/fixtures?id={fid}",
-                    headers=HEADERS,
-                    timeout=10
-                )
-                r.raise_for_status()
-                api_data = r.json()
+                r = client.get(f"{BASE_URL}/fixtures?id={row['fixture_id']}", headers=HEADERS)
+                data = r.json()["response"][0]
 
-                if not api_data.get("response"):
-                    print(f"No response for fixture {fid}")
-                    continue
-
-                fixture = api_data["response"][0]
-                
-                # Safe score extraction
-                goals = fixture.get("goals", {})
-                new_home = goals.get("home")
-                new_away = goals.get("away")
-                new_home = 0 if new_home is None else int(new_home)
-                new_away = 0 if new_away is None else int(new_away)
-                
-                new_status = fixture["fixture"]["status"]["short"]
-
-                # Update database
                 cursor.execute("""
                     UPDATE pro_tips
-                    SET home_score = %s,
-                        away_score = %s,
-                        status = %s,
-                        last_updated = NOW()
-                    WHERE fixture_id = %s
-                """, (new_home, new_away, new_status, fid))
+                    SET home_score=%s, away_score=%s, status=%s, last_updated=NOW()
+                    WHERE fixture_id=%s
+                """, (
+                    data["goals"]["home"] or 0,
+                    data["goals"]["away"] or 0,
+                    data["fixture"]["status"]["short"],
+                    row["fixture_id"]
+                ))
 
-                updated_count += cursor.rowcount
-
-                # Invalidate Redis cache for this date
-                if row.get('date'):
+                if row['date'] not in deleted_dates:
                     redis_client.delete(f"fixtures:{row['date']}")
+                    deleted_dates.add(row['date'])
 
-                # Log useful information
-                if current_status != new_status:
-                    print(f"STATUS CHANGED → Fixture {fid}: {current_status} → {new_status} | Score: {new_home}-{new_away} | Time: {current_match_time}")
-                else:
-                    print(f"Refreshed Fixture {fid}: {new_home}-{new_away} ({new_status})")
-
-            except requests.exceptions.RequestException as req_err:
-                print(f"API request failed for fixture {fid}: {req_err}")
-            except mysql.connector.Error as mysql_err:
-                print(f"MySQL error for fixture {fid}: {mysql_err}")
             except Exception as e:
-                print(f"Unexpected error refreshing fixture {fid}: {e}")
+                print("Error:", e)
 
-        conn.commit()
-        print(f"Batch commit complete — {updated_count} rows affected")
+    conn.commit()
+    cursor.close()
+    conn.close()
 
-    except Exception as e:
-        print(f"Critical error in refresh_live_predictions: {e}")
-        if conn:
-            conn.rollback()
-    finally:
-        if cursor:
-            cursor.close()
-        if conn and conn.is_connected():
-            conn.close()
-
-# Schedule the job
 scheduler.add_job(
     refresh_live_predictions,
-    trigger=IntervalTrigger(seconds=60),
+    trigger=IntervalTrigger(seconds=90),
     id='live_refresh',
-    name='Refresh live football predictions',
     replace_existing=True
 )
 
-# Start scheduler when FastAPI starts
 @app.on_event("startup")
-async def startup_event():
-    if not scheduler.running:
-        scheduler.start()
-        print("Live match auto-refresh scheduler started (every 60 seconds)")
+async def startup():
+    scheduler.start()
 
-# Optional: clean shutdown
 @app.on_event("shutdown")
-def shutdown_event():
-    if scheduler.running:
-        scheduler.shutdown(wait=False)
-        print("Scheduler stopped")
+def shutdown():
+    scheduler.shutdown()
 
-# Your existing endpoints go here (examples)
-
-# Optional health check endpoint
+# ────────────────────────────────────────────────
+# HEALTH
+# ────────────────────────────────────────────────
 @app.get("/health")
 def health():
     return {
-        "status": "healthy",
-        "scheduler_running": scheduler.running,
-        "utc_time": datetime.utcnow().isoformat()
+        "status": "ok",
+        "time": datetime.utcnow().isoformat()
     }

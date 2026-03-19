@@ -1,136 +1,124 @@
-import os
-from fastapi import FastAPI
-from fastapi.responses import JSONResponse
-from typing import List, Optional
-import mysql.connector
+from apscheduler.schedulers.blocking import BlockingScheduler
+from datetime import datetime
+import httpx
 import redis
-import json
-from datetime import date
-import kbt_funtions
+from psycopg2.extras import RealDictCursor
+from psycopg2.pool import SimpleConnectionPool
 import kbt_load_env
-import requests  # ← add this import
-from apscheduler.schedulers.background import BackgroundScheduler
-from apscheduler.triggers.interval import IntervalTrigger
 
-app = FastAPI(title="Match Fixtures API")
+# ────────────────────────────────────────────────
+# INIT
+# ────────────────────────────────────────────────
+redis_client = redis.from_url(kbt_load_env.redis_url, decode_responses=True)
 
-# Redis
-REDIS_URL = kbt_load_env.redis_url
-redis_client = redis.from_url(REDIS_URL, decode_responses=True)
-CACHE_TTL = 24 * 60 * 60  # 24 hours default
+BASE_URL = "https://v3.football.api-sports.io"
+HEADERS = {"x-apisports-key": kbt_load_env.api_football_key}
 
-# API-Football
-API_KEY = kbt_load_env.api_football_key
-HEADERS = {"x-apisports-key": API_KEY}
-
-# Scheduler (global)
-scheduler = BackgroundScheduler()
+# DB POOL
+db_pool = SimpleConnectionPool(
+    minconn=1,
+    maxconn=10,
+    dsn=kbt_load_env.supabase_url
+)
 
 def get_db():
-    return kbt_funtions.db_connection()
+    return db_pool.getconn()
+
+def release_db(conn):
+    db_pool.putconn(conn)
 
 # ────────────────────────────────────────────────
-# Background job: refresh only currently live matches
+# JOB
 # ────────────────────────────────────────────────
 def refresh_live_predictions():
-    conn = None
-    cursor = None
+    conn = get_db()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+
     try:
-        conn = get_db()
-        cursor = conn.cursor(dictionary=True)
+        print("⏱ Running scheduler:", datetime.utcnow())
 
-        # Only matches that are live *today*
         cursor.execute("""
-            SELECT fixture_id, `date`, status
+            SELECT fixture_id, date
             FROM pro_tips
-            WHERE `date` = CURDATE()
-              AND status IN ('1H', 'HT', '2H', 'ET', 'BT', 'P', 'LIVE', 'SUSP', 'INT')
+            WHERE date = (NOW() AT TIME ZONE 'Africa/Lagos')::date
+              AND (
+                  last_updated IS NULL
+                  OR last_updated < NOW() - INTERVAL '60 seconds'
+              )
+              AND (
+                  status IN ('1H','HT','2H','LIVE','ET','P','INT')
+                  OR (
+                      status = 'NS'
+                      AND match_time BETWEEN 
+                          (NOW() AT TIME ZONE 'Africa/Lagos')::time
+                          AND (NOW() AT TIME ZONE 'Africa/Lagos' + INTERVAL '1 hour')::time
+                  )
+              )
+            LIMIT 10
         """)
-        live_rows = cursor.fetchall()
 
-        if not live_rows:
-            print(f"No live matches to refresh at {date.today()}")
+        rows = cursor.fetchall()
+
+        if not rows:
+            print("⚠️ No matches found")
             return
 
-        print(f"Refreshing {len(live_rows)} live matches at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"✅ Found {len(rows)} matches")
 
-        for row in live_rows:
-            fid = row['fixture_id']
-            try:
-                r = requests.get(
-                    f"https://v3.football.api-sports.io/fixtures?id={fid}",
-                    headers=HEADERS,
-                    timeout=10
-                )
-                r.raise_for_status()
-                api_data = r.json()
+        deleted_dates = set()
 
-                if not api_data.get("response"):
-                    print(f"No response for fixture {fid}")
-                    continue
+        with httpx.Client(timeout=10) as client:
+            for row in rows:
+                try:
+                    fid = row["fixture_id"]
 
-                fixture = api_data["response"][0]
-                new_home = fixture["goals"]["home"]
-                new_away = fixture["goals"]["away"]
-                new_status = fixture["fixture"]["status"]["short"]
+                    r = client.get(f"{BASE_URL}/fixtures?id={fid}", headers=HEADERS)
+                    data = r.json()
 
-                cursor.execute("""
-                    UPDATE pro_tips
-                    SET home_score = %s,
-                        away_score = %s,
-                        status = %s,
-                        last_updated = NOW()
-                    WHERE fixture_id = %s
-                """, (new_home, new_away, new_status, fid))
+                    if not data.get("response"):
+                        continue
 
-                # Invalidate Redis cache for that date
-                redis_client.delete(f"fixtures:{row['date']}")
+                    f = data["response"][0]
 
-                print(f"Updated fixture {fid}: {new_home}-{new_away} ({new_status})")
+                    cursor.execute("""
+                        UPDATE pro_tips
+                        SET home_score=%s,
+                            away_score=%s,
+                            status=%s,
+                            last_updated=NOW()
+                        WHERE fixture_id=%s
+                    """, (
+                        f["goals"]["home"] or 0,
+                        f["goals"]["away"] or 0,
+                        f["fixture"]["status"]["short"],
+                        fid
+                    ))
 
-            except requests.exceptions.RequestException as req_err:
-                print(f"API request failed for fixture {fid}: {req_err}")
-            except Exception as e:
-                print(f"Unexpected error refreshing fixture {fid}: {e}")
+                    if row["date"] not in deleted_dates:
+                        redis_client.delete(f"fixtures:{row['date']}")
+                        deleted_dates.add(row["date"])
+
+                    print(f"🔄 Updated {fid}")
+
+                except Exception as e:
+                    print("❌ Error:", e)
 
         conn.commit()
 
-    except mysql.connector.Error as mysql_err:
-        print(f"MySQL error during live refresh: {mysql_err}")
-    except Exception as e:
-        print(f"General error in refresh_live_predictions: {e}")
     finally:
-        if cursor:
-            cursor.close()
-        if conn and conn.is_connected():
-            conn.close()
+        cursor.close()
+        release_db(conn)
 
-# Schedule it
+# ────────────────────────────────────────────────
+# SCHEDULER (BLOCKING)
+# ────────────────────────────────────────────────
+scheduler = BlockingScheduler()
+
 scheduler.add_job(
     refresh_live_predictions,
-    trigger=IntervalTrigger(seconds=60),
-    id='live_predictions_refresh',
-    name='Refresh live football predictions',
-    replace_existing=True
+    'interval',
+    seconds=90
 )
 
-# Start scheduler on app startup
-@app.on_event("startup")
-async def startup_event():
-    if not scheduler.running:
-        scheduler.start()
-        print("Live predictions auto-refresh scheduler started (every 60 seconds)")
-
-# Clean shutdown (optional but good practice)
-@app.on_event("shutdown")
-def shutdown_event():
-    if scheduler.running:
-        scheduler.shutdown(wait=False)
-        print("Live refresh scheduler stopped")
-
-# Your other endpoints go here...
-# e.g. /fixtures/today, /fixtures/{date}, etc.
-
-@app.get("/health")
-def health():
-    return {"status": "ok", "live_scheduler_running": scheduler.running}
+print("🚀 Worker started...")
+scheduler.start()

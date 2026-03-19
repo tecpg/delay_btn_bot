@@ -51,7 +51,7 @@ def refresh_live_predictions():
                       status = 'NS'
                       AND match_time BETWEEN 
                           (NOW() AT TIME ZONE 'Africa/Lagos')::time
-                          AND (NOW() AT TIME ZONE 'Africa/Lagos' + INTERVAL '40 minutes')::time
+                          AND (NOW() AT TIME ZONE 'Africa/Lagos' + INTERVAL '10 minutes')::time
                   )
               )
             LIMIT 10

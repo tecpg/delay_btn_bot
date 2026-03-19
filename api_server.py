@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, requests
 from fastapi.responses import JSONResponse
 from typing import List, Optional
 import mysql.connector
@@ -14,10 +14,6 @@ import httpx
 
 import os
 
-import redis
-import json
-from datetime import date
-import requests
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from datetime import datetime
@@ -132,8 +128,7 @@ HEADERS = {"x-apisports-key": kbt_load_env.api_football_key}
 CACHE_TTL_SHORT = 3600      # 1 hour for live/recent
 CACHE_TTL_LONG  = 86400 * 3 # 3 days for finished matches
 
-def get_db():
-    return kbt_funtions.db_connection()
+
 
 @app.get("/fixture-details/{fixture_id}")
 async def get_fixture_details(fixture_id: int):
@@ -265,7 +260,9 @@ async def get_fixture_details(fixture_id: int):
 
             # Cache
             ttl = CACHE_TTL_SHORT if result["fixture"]["status"] not in ["FT", "AET", "PEN"] else CACHE_TTL_LONG
-            redis_client.setex(cache_key, ttl, json.dumps(result))
+            import gzip
+
+            redis_client.setex(cache_key, ttl, gzip.compress(json.dumps(result).encode()))
 
             return result
 
@@ -332,7 +329,10 @@ def refresh_live_predictions():
             current_match_time = row.get('match_time')
 
             try:
-                r = requests.get(
+              
+
+                with httpx.Client(timeout=10) as client:
+                    r = client.get(
                     f"https://v3.football.api-sports.io/fixtures?id={fid}",
                     headers=HEADERS,
                     timeout=10
@@ -368,8 +368,13 @@ def refresh_live_predictions():
                 updated_count += cursor.rowcount
 
                 # Invalidate Redis cache for this date
-                if row.get('date'):
+                deleted_dates = set()
+
+                if row.get('date') and row['date'] not in deleted_dates:
                     redis_client.delete(f"fixtures:{row['date']}")
+                    deleted_dates.add(row['date'])
+                # if row.get('date'):
+                #     redis_client.delete(f"fixtures:{row['date']}")
 
                 # Log useful information
                 if current_status != new_status:

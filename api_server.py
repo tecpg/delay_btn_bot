@@ -301,19 +301,23 @@ def refresh_live_predictions():
         #   - Already live matches
         #   - OR matches that are NS but kick-off is within next 45 minutes
         cursor.execute("""
-            SELECT fixture_id, `date`, status, match_time
-            FROM pro_tips
-            WHERE `date` = CURDATE()
-              AND last_updated < NOW() - INTERVAL 30 SECOND
-              AND (
-                  status IN ('1H', 'HT', '2H', 'ET', 'BT', 'P', 'LIVE', 'SUSP', 'INT')
-                  OR (
-                      status = 'NS'
-                      AND match_time IS NOT NULL
-                      AND match_time <= ADDTIME(CURRENT_TIME(), '01:45:00')
-                  )
-              ) LIMIT 10
-        """)
+                    SELECT fixture_id, `date`, status, match_time
+                    FROM pro_tips
+                    WHERE `date` = DATE(CONVERT_TZ(NOW(), '+00:00', '+01:00'))
+                    AND last_updated < NOW() - INTERVAL 30 SECOND
+                    AND (
+                        status IN ('1H', 'HT', '2H', 'ET', 'BT', 'P', 'LIVE', 'SUSP', 'INT')
+                        OR (
+                            status = 'NS'
+                            AND match_time IS NOT NULL
+                            AND match_time <= ADDTIME(
+                                TIME(CONVERT_TZ(NOW(), '+00:00', '+01:00')),
+                                '01:45:00'
+                            )
+                        )
+                    )
+                    LIMIT 10
+                """)
         rows_to_refresh = cursor.fetchall()
 
         if not rows_to_refresh:

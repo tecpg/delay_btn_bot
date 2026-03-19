@@ -187,22 +187,23 @@ def refresh_live_predictions():
 
     try:
         cursor.execute("""
-            SELECT fixture_id, date
-            FROM pro_tips
-            WHERE date = CURRENT_DATE
-              AND (
-                  last_updated IS NULL
-                  OR last_updated < NOW() - INTERVAL '60 seconds'
-              )
-              AND (
-                  status IN ('1H','HT','2H','LIVE')
-                  OR (
-                      status = 'NS'
-                      AND match_time BETWEEN CURRENT_TIME
-                      AND CURRENT_TIME + INTERVAL '1 hour'
-                  )
-              )
-            LIMIT 10
+           SELECT fixture_id, date
+                FROM pro_tips
+                WHERE date = (NOW() AT TIME ZONE 'Africa/Lagos')::date
+                AND (
+                    last_updated IS NULL
+                    OR last_updated < NOW() - INTERVAL '60 seconds'
+                )
+                AND (
+                    status IN ('1H','HT','2H','LIVE','ET','P','INT')
+                    OR (
+                        status = 'NS'
+                        AND match_time BETWEEN 
+                            (NOW() AT TIME ZONE 'Africa/Lagos')::time
+                            AND (NOW() AT TIME ZONE 'Africa/Lagos' + INTERVAL '1 hour')::time
+                    )
+                )
+                LIMIT 10
         """)
 
         rows = cursor.fetchall()

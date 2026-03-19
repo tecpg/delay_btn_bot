@@ -81,8 +81,16 @@ class FixtureOut(BaseModel):
 # ────────────────────────────────────────────────
 # FIXTURES
 # ────────────────────────────────────────────────
+
+from datetime import date
+
+
+
 @app.get("/fixtures/{fixture_date}", response_model=List[FixtureOut])
 def get_fixtures(fixture_date: str):
+
+    if fixture_date == "today":
+        fixture_date = str(date.today())
 
     cache_key = f"fixtures:{fixture_date}"
     cached = get_cache(cache_key)
@@ -90,18 +98,28 @@ def get_fixtures(fixture_date: str):
         return cached
 
     conn = get_db()
-    cursor = conn.cursor()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
 
     try:
         cursor.execute("""
-            SELECT fixture_id, league, home_team, away_team,
-                   match_time, date, home_score, away_score, status
+            SELECT *
             FROM pro_tips
             WHERE date = %s
             ORDER BY match_time DESC
         """, (fixture_date,))
 
         rows = cursor.fetchall()
+
+        def normalize_row(r):
+            if r.get("match_time"):
+                r["match_time"] = str(r["match_time"])
+            if r.get("date"):
+                r["date"] = str(r["date"])
+            if r.get("last_updated"):
+                r["last_updated"] = r["last_updated"].isoformat()
+            return r
+
+        rows = [normalize_row(r) for r in rows]
 
         ttl = get_ttl(date.fromisoformat(fixture_date))
         set_cache(cache_key, rows, ttl)
@@ -112,9 +130,7 @@ def get_fixtures(fixture_date: str):
         cursor.close()
         release_db(conn)
 
-@app.get("/fixtures/today")
-def today():
-    return get_fixtures(str(date.today()))
+
 
 # ────────────────────────────────────────────────
 # FIXTURE DETAILS
@@ -155,7 +171,7 @@ scheduler = BackgroundScheduler()
 
 def refresh_live_predictions():
     conn = get_db()
-    cursor = conn.cursor()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
 
     try:
         cursor.execute("""

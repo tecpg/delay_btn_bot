@@ -300,7 +300,9 @@ def refresh_live_predictions():
         conn = get_db()
         cursor = conn.cursor(dictionary=True)
 
-        # Query: live OR soon-to-start
+        # This query catches:
+        #   - Already live matches
+        #   - OR matches that are NS but kick-off is within next 45 minutes
         cursor.execute("""
             SELECT fixture_id, `date`, status, match_time
             FROM pro_tips
@@ -310,7 +312,7 @@ def refresh_live_predictions():
                   OR (
                       status = 'NS'
                       AND match_time IS NOT NULL
-                      AND match_time <= CURRENT_TIME() + INTERVAL 45 MINUTE
+                      AND match_time <= ADDTIME(CURRENT_TIME(), '00:45:00')
                   )
               )
         """)
@@ -326,7 +328,8 @@ def refresh_live_predictions():
 
         for row in rows_to_refresh:
             fid = row['fixture_id']
-            current_status = row['status']
+            current_status = row.get('status')
+            current_match_time = row.get('match_time')
 
             try:
                 r = requests.get(
@@ -342,18 +345,17 @@ def refresh_live_predictions():
                     continue
 
                 fixture = api_data["response"][0]
-
-                # Safely get scores (None or missing → 0)
+                
+                # Safe score extraction
                 goals = fixture.get("goals", {})
                 new_home = goals.get("home")
                 new_away = goals.get("away")
-
                 new_home = 0 if new_home is None else int(new_home)
                 new_away = 0 if new_away is None else int(new_away)
-
+                
                 new_status = fixture["fixture"]["status"]["short"]
 
-                # Execute update
+                # Update database
                 cursor.execute("""
                     UPDATE pro_tips
                     SET home_score = %s,
@@ -365,40 +367,25 @@ def refresh_live_predictions():
 
                 updated_count += cursor.rowcount
 
-                # Invalidate Redis
-                if row['date']:
+                # Invalidate Redis cache for this date
+                if row.get('date'):
                     redis_client.delete(f"fixtures:{row['date']}")
 
-                # Log meaningful changes
-                changed = False
-                log_parts = []
+                # Log useful information
                 if current_status != new_status:
-                    log_parts.append(f"status {current_status} → {new_status}")
-                    changed = True
-                if row.get('home_score') != new_home:
-                    log_parts.append(f"home {row.get('home_score')} → {new_home}")
-                    changed = True
-                if row.get('away_score') != new_away:
-                    log_parts.append(f"away {row.get('away_score')} → {new_away}")
-                    changed = True
-
-                if changed:
-                    print(f"Updated fixture {fid}: {new_home}-{new_away} ({new_status})  [{', '.join(log_parts)}]")
+                    print(f"STATUS CHANGED → Fixture {fid}: {current_status} → {new_status} | Score: {new_home}-{new_away} | Time: {current_match_time}")
                 else:
-                    print(f"No change for fixture {fid} ({new_status})")
+                    print(f"Refreshed Fixture {fid}: {new_home}-{new_away} ({new_status})")
 
             except requests.exceptions.RequestException as req_err:
                 print(f"API request failed for fixture {fid}: {req_err}")
             except mysql.connector.Error as mysql_err:
                 print(f"MySQL error for fixture {fid}: {mysql_err}")
-            except ValueError as ve:
-                print(f"Value conversion error for fixture {fid}: {ve}")
             except Exception as e:
-                print(f"Unexpected error refreshing fixture {fid}: {type(e).__name__}: {e}")
+                print(f"Unexpected error refreshing fixture {fid}: {e}")
 
-        # Commit all updates at once
         conn.commit()
-        print(f"Batch commit complete – {updated_count} rows affected")
+        print(f"Batch commit complete — {updated_count} rows affected")
 
     except Exception as e:
         print(f"Critical error in refresh_live_predictions: {e}")
@@ -409,6 +396,7 @@ def refresh_live_predictions():
             cursor.close()
         if conn and conn.is_connected():
             conn.close()
+
 # Schedule the job
 scheduler.add_job(
     refresh_live_predictions,

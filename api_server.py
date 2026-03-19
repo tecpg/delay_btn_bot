@@ -186,67 +186,96 @@ def refresh_live_predictions():
     cursor = conn.cursor(cursor_factory=RealDictCursor)
 
     try:
+        # 🧠 Debug current time (very useful)
+        print("⏱ UTC NOW:", datetime.utcnow())
+
         cursor.execute("""
-           SELECT fixture_id, date
-                FROM pro_tips
-                WHERE date = (NOW() AT TIME ZONE 'Africa/Lagos')::date
-                AND (
-                    last_updated IS NULL
-                    OR last_updated < NOW() - INTERVAL '60 seconds'
-                )
-                AND (
-                    status IN ('1H','HT','2H','LIVE','ET','P','INT')
-                    OR (
-                        status = 'NS'
-                        AND match_time BETWEEN 
-                            (NOW() AT TIME ZONE 'Africa/Lagos')::time
-                            AND (NOW() AT TIME ZONE 'Africa/Lagos' + INTERVAL '1 hour')::time
-                    )
-                )
-                LIMIT 10
+            SELECT fixture_id, date
+            FROM pro_tips
+            WHERE date = (NOW() AT TIME ZONE 'Africa/Lagos')::date
+              AND (
+                  last_updated IS NULL
+                  OR last_updated < NOW() - INTERVAL '60 seconds'
+              )
+              AND (
+                  status IN ('1H','HT','2H','LIVE','ET','P','INT')
+                  OR (
+                      status = 'NS'
+                      AND match_time BETWEEN 
+                          (NOW() AT TIME ZONE 'Africa/Lagos')::time
+                          AND (NOW() AT TIME ZONE 'Africa/Lagos' + INTERVAL '1 hour')::time
+                  )
+              )
+            LIMIT 10
         """)
 
         rows = cursor.fetchall()
+
         if not rows:
+            print("⚠️ Scheduler: No matches found")
             return
+
+        print(f"✅ Scheduler: Found {len(rows)} matches")
 
         deleted_dates = set()
 
+        # 🔥 Reuse HTTP client (faster)
         with httpx.Client(timeout=10) as client:
             for row in rows:
                 try:
                     fid = row["fixture_id"]
 
-                    r = client.get(f"{BASE_URL}/fixtures?id={fid}", headers=HEADERS)
-                    data = r.json()["response"][0]
+                    response = client.get(
+                        f"{BASE_URL}/fixtures?id={fid}",
+                        headers=HEADERS
+                    )
+
+                    data = response.json()
+
+                    if not data.get("response"):
+                        print(f"⚠️ No API data for fixture {fid}")
+                        continue
+
+                    fixture = data["response"][0]
+
+                    home_goals = fixture["goals"]["home"] or 0
+                    away_goals = fixture["goals"]["away"] or 0
+                    status = fixture["fixture"]["status"]["short"]
 
                     cursor.execute("""
                         UPDATE pro_tips
-                        SET home_score=%s,
-                            away_score=%s,
-                            status=%s,
-                            last_updated=NOW()
-                        WHERE fixture_id=%s
+                        SET home_score = %s,
+                            away_score = %s,
+                            status = %s,
+                            last_updated = NOW()
+                        WHERE fixture_id = %s
                     """, (
-                        data["goals"]["home"] or 0,
-                        data["goals"]["away"] or 0,
-                        data["fixture"]["status"]["short"],
+                        home_goals,
+                        away_goals,
+                        status,
                         fid
                     ))
 
+                    print(f"🔄 Updated {fid} → {home_goals}-{away_goals} ({status})")
+
+                    # 🧹 Clear cache for that date
                     if row["date"] not in deleted_dates:
                         redis_client.delete(f"fixtures:{row['date']}")
                         deleted_dates.add(row["date"])
 
                 except Exception as e:
-                    print("Scheduler error:", e)
+                    print(f"❌ Scheduler error for {row.get('fixture_id')}: {e}")
 
         conn.commit()
+        print("✅ Scheduler commit complete")
+
+    except Exception as e:
+        print(f"🔥 Critical scheduler error: {e}")
+        conn.rollback()
 
     finally:
         cursor.close()
         release_db(conn)
-
 scheduler.add_job(
     refresh_live_predictions,
     trigger=IntervalTrigger(seconds=90),

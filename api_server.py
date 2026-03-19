@@ -70,14 +70,26 @@ def get_ttl(match_date: date):
 class FixtureOut(BaseModel):
     fixture_id: int
     league: str
+    league_logo: Optional[str] = None
+
     home_team: str
+    home_logo: Optional[str] = None
+
     away_team: str
+    away_logo: Optional[str] = None
+
     match_time: Optional[str]
     date: str
-    home_score: Optional[int]
-    away_score: Optional[int]
-    status: Optional[str]
 
+    prediction: Optional[str] = None
+    odd: Optional[str] = None
+
+    home_score: Optional[int] = None
+    away_score: Optional[int] = None
+    status: Optional[str] = None
+
+    source: Optional[str] = None
+    last_updated: Optional[str] = None
 # ────────────────────────────────────────────────
 # FIXTURES
 # ────────────────────────────────────────────────

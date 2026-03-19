@@ -42,18 +42,24 @@ SELECT fixture_id, date
   FROM pro_tips
  WHERE date = CURRENT_DATE AT TIME ZONE 'Africa/Lagos'
    AND (last_updated IS NULL 
-        OR last_updated < NOW() - INTERVAL '70 seconds')   -- slight stagger to reduce races
-   AND match_time BETWEEN 
-       NOW() - INTERVAL '3 hours'          -- generous for in-play + catch delayed matches
-       AND NOW() + INTERVAL '90 minutes'   -- only poll upcoming matches up to ~1.5 hours ahead
+        OR last_updated < NOW() - INTERVAL '70 seconds')
+   AND (date + match_time AT TIME ZONE 'Africa/Lagos') BETWEEN 
+           NOW() - INTERVAL '3 hours'          -- Covers full matches + delays/postponed
+           AND NOW() + INTERVAL '45 minutes'   -- Only poll upcoming if close (adjust 45–90 min)
    AND (
-       -- Aggressive for live matches
-       fixture_status IN ('1H', 'HT', '2H', 'ET', 'BT', 'P', 'S')   -- add your known in-play codes
+       -- Prefer live/in-play first (these change fast)
+       status IN ('1H', 'HT', '2H', 'ET', 'BT', 'P', 'S')   -- API-Football in-play codes
        OR 
-       -- Relaxed for upcoming — but only if close
-       (fixture_status = 'NS' AND match_time <= NOW() + INTERVAL '90 minutes')
+       -- Upcoming only if very close or never updated
+       (status = 'NS' AND (date + match_time AT TIME ZONE 'Africa/Lagos') <= NOW() + INTERVAL '75 minutes')
+       OR last_updated IS NULL   -- Force first poll even if far
    )
- ORDER BY match_time
+ ORDER BY 
+     CASE 
+         WHEN status IN ('1H', 'HT', '2H', 'ET', 'BT', 'P', 'S') THEN 0   -- live first
+         ELSE 1 
+     END,
+     (date + match_time)
  LIMIT 20
 FOR UPDATE SKIP LOCKED
         """)

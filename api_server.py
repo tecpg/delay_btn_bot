@@ -421,12 +421,6 @@ def shutdown_event():
         print("Scheduler stopped")
 
 # Your existing endpoints go here (examples)
-@app.get("/fixtures/today")
-def get_fixtures_today():
-    # Your existing logic...
-    pass
-
-# ... other routes ...
 
 # Optional health check endpoint
 @app.get("/health")

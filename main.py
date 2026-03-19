@@ -38,22 +38,19 @@ def refresh_live_predictions():
         print("⏱ Running scheduler:", datetime.utcnow())
 
         cursor.execute("""
-            SELECT fixture_id, date
+          SELECT fixture_id, date
             FROM pro_tips
             WHERE date = (NOW() AT TIME ZONE 'Africa/Lagos')::date
-              AND (
-                  last_updated IS NULL
-                  OR last_updated < NOW() - INTERVAL '60 seconds'
-              )
-              AND (
-                  status IN ('1H','HT','2H','LIVE','ET','P','INT')
-                  OR (
-                      status = 'NS'
-                      AND match_time BETWEEN 
-                          (NOW() AT TIME ZONE 'Africa/Lagos')::time
-                          AND (NOW() AT TIME ZONE 'Africa/Lagos' + INTERVAL '10 minutes')::time
-                  )
-              )
+            AND (
+                last_updated IS NULL
+                OR last_updated < NOW() - INTERVAL '60 seconds'
+            )
+            AND (
+                match_time BETWEEN
+                    (NOW() AT TIME ZONE 'Africa/Lagos')::time - INTERVAL '2 hours'
+                    AND
+                    (NOW() AT TIME ZONE 'Africa/Lagos')::time + INTERVAL '2 hours'
+            )
             LIMIT 10
         """)
 

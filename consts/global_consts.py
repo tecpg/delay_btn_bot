@@ -49,12 +49,15 @@ Your feedback is always valuable to us. Thank you!</p> """
 MYSQL_DATE = date.today().strftime('%Y-%m-%d')
 
 PRESENT_DAY_DATE = date.today()
-YESTERDAY_DATE = PRESENT_DAY_DATE - timedelta(days = 1)
-YESTERDAY_DMY = YESTERDAY_DATE.strftime('%d-%m-%Y')
 PRESENT_DAY_DMY = date.today().strftime('%d-%m-%Y')
 PRESENT_DAY_YMD = date.today().strftime('%Y-%m-%d')
-TOMORROW_YMD = (date.today() + timedelta(days=1)).strftime('%Y-%m-%d')
 
+YESTERDAY_DATE = PRESENT_DAY_DATE - timedelta(days=1)
+YESTERDAY_YMD = YESTERDAY_DATE.strftime('%Y-%m-%d')  # Correct format for MySQL
+YESTERDAY_DMY = YESTERDAY_DATE.strftime('%d-%m-%Y')  # Correct format for MySQL
+
+
+TOMORROW_YMD = (date.today() + timedelta(days=1)).strftime('%Y-%m-%d')
 
 
 #header constants
@@ -105,17 +108,14 @@ MY_HEARDER = headers.update(additional_headers)
 #cvs file names
 
 
-VIP_CSV = "csv_files/vip_tips_data.csv"
-BASKETBALL_CSV = "csv_files/basketball.csv"
-CORNERS_CSV = "csv_files/corners.csv"
-HOCKEY_CSV = "csv_files/hockey.csv"
-FEATURED_MATCH = "csv_files/featured_match.csv"
-SAFE_BET_DC_CSV = "csv_files/safe_dc.csv"
-SAFE_BET_OVERGOALS_CSV = "csv_files/safe_bet_overgoals.csv"
-TENNIS_CSV = "csv_files/tennis.csv"
-TIPSBET_CSV = "csv_files/tipsbet_data.csv"
-PRIMA_CSV = "csv_files/prima.csv"
-PRIMA_LOW_CSV = "csv_files/primalow.csv"
+PRO_RESULTS_CSV = "csv_files/pro_results.csv"
+PRO_CSV = "csv_files/pro_tips.csv"
+API_FOOTBALL_RESULTS_CSV = "csv_files/api_call_pro_results.csv"
+API_FOOTBALL_CSV = "csv_files/api_match.csv"
+MATCHED_RESULTS_CSV = "csv_files/matched_results.csv"
+MATCHED_FIXTURES_CSV = "csv_files/matched_fixtures.csv"
+
+
 
 
 #telegram const

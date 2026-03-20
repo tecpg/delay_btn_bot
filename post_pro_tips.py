@@ -1,0 +1,242 @@
+import csv
+import re
+import unicodedata
+from datetime import datetime, date
+from zoneinfo import ZoneInfo
+
+import psycopg2
+from psycopg2.extras import RealDictCursor
+
+from consts import global_consts as gc
+import kbt_load_env
+
+# ────────────────────────────────────────────────
+# PATHS
+# ────────────────────────────────────────────────
+SCRAPED_CSV = gc.PRO_CSV
+API_CSV = gc.API_FOOTBALL_CSV
+OUTPUT_CSV = gc.MATCHED_FIXTURES_CSV
+
+
+# ────────────────────────────────────────────────
+# DB
+# ────────────────────────────────────────────────
+def get_db():
+    return psycopg2.connect(
+        kbt_load_env.supabase_url,
+        cursor_factory=RealDictCursor,
+        sslmode="require"
+    )
+
+
+# ────────────────────────────────────────────────
+# NORMALIZATION
+# ────────────────────────────────────────────────
+def normalize_team(name):
+    name = name.lower()
+    name = unicodedata.normalize('NFD', name)
+    name = ''.join(c for c in name if unicodedata.category(c) != 'Mn')
+    name = re.sub(r'[^a-z\s]', ' ', name)
+    name = re.sub(r'\b(b|ii|ad|fc|sc|cf|club|rs|rj)\b', '', name)
+    name = re.sub(r'\s+', ' ', name).strip()
+    return set(w for w in name.split() if len(w) > 2)
+
+
+def partial_match(db_home, db_away, api_home, api_away):
+    db_home_words = normalize_team(db_home)
+    db_away_words = normalize_team(db_away)
+    api_home_words = normalize_team(api_home)
+    api_away_words = normalize_team(api_away)
+
+    return (
+        (db_home_words & api_home_words and db_away_words & api_away_words) or
+        (db_home_words & api_away_words and db_away_words & api_home_words)
+    )
+
+
+# ────────────────────────────────────────────────
+# LOAD CSV
+# ────────────────────────────────────────────────
+def load_csv(path):
+    with open(path, "r", encoding="utf-8") as f:
+        return list(csv.DictReader(f))
+
+
+# ────────────────────────────────────────────────
+# MATCH
+# ────────────────────────────────────────────────
+def get_matched_fixtures(api_fixtures, predictions):
+    matched = []
+
+    for fixture in api_fixtures:
+        api_home = fixture["Home Team"]
+        api_away = fixture["Away Team"]
+
+        for pred in predictions:
+            try:
+                db_home, db_away = pred["Fixtures"].split(" vs ")
+            except:
+                continue
+
+            if partial_match(db_home, db_away, api_home, api_away):
+
+                match_time_str = fixture.get("Match Time")
+                match_date_str = fixture.get("Date")
+
+                match_time = None
+                match_datetime = None
+
+                try:
+                    if match_time_str:
+                         match_datetime = datetime.strptime(
+                                f"{match_date_str} {match_time_str}",
+                                "%Y-%m-%d %H:%M"
+                            ).replace(tzinfo=ZoneInfo("UTC"))
+
+                    if match_date_str and match_time:
+                        # 🔥 combine date + time → UTC datetime
+                        match_datetime = datetime.strptime(
+                            f"{match_date_str} {match_time_str}",
+                            "%Y-%m-%d %H:%M"
+                        )
+                except Exception as e:
+                    print("❌ datetime parse error:", e)
+
+                matched.append({
+                    "fixture_id": int(fixture["Fixture ID"]),
+                    "league": fixture["League"],
+                    "league_logo": fixture["League Logo"],
+                    "date": fixture.get("Date"),
+
+                  
+                    "match_time": match_time,
+                    "match_datetime": match_datetime,  # ✅ ADD THIS
+
+                    "home_team": api_home,
+                    "home_logo": fixture.get("Home Logo"),
+                    "away_team": api_away,
+                    "away_logo": fixture.get("Away Logo"),
+
+                    "home_score": fixture.get("Home Score") or 0,
+                    "away_score": fixture.get("Away Score") or 0,
+                    "status": fixture.get("Status"),
+
+                    "prediction": pred["Tip"],
+                    "odd": pred["Odd"],
+                    "source": pred["Source"]
+                })
+
+                break
+
+    return matched
+
+
+# ────────────────────────────────────────────────
+# SAVE CSV
+# ────────────────────────────────────────────────
+def save_to_csv(data):
+    if not data:
+        print("⚠️ No matched fixtures")
+        return
+
+    with open(OUTPUT_CSV, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=data[0].keys())
+        writer.writeheader()
+
+        for row in data:
+            row_copy = row.copy()
+
+            # convert TIME → string for CSV
+            if row_copy.get("match_time"):
+                row_copy["match_time"] = row_copy["match_time"].strftime("%H:%M:%S")
+
+            writer.writerow(row_copy)
+
+    print(f"✅ CSV saved → {OUTPUT_CSV}")
+
+
+# ────────────────────────────────────────────────
+# INSERT (POSTGRES)
+# ────────────────────────────────────────────────
+def insert_matched_fixtures(data):
+    if not data:
+        print("⚠️ No data to insert")
+        return
+
+    conn = get_db()
+    cursor = conn.cursor()
+
+    try:
+        query = """
+                INSERT INTO pro_tips (
+                fixture_id, league, league_logo,
+                home_team, home_logo,
+                away_team, away_logo,
+                match_time, match_datetime, date,
+                prediction, odd,
+                home_score, away_score,
+                status, source
+            )
+            VALUES (
+                %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s
+            )
+            ON CONFLICT (fixture_id)
+            DO UPDATE SET
+                prediction = EXCLUDED.prediction,
+                odd = EXCLUDED.odd,
+                source = EXCLUDED.source,
+                match_datetime = EXCLUDED.match_datetime,
+                last_updated = NOW()
+        """
+
+        values = [
+            (
+                r["fixture_id"],
+                r["league"],
+                r["league_logo"],
+                r["home_team"],
+                r["home_logo"],
+                r["away_team"],
+                r["away_logo"],
+                r["match_time"],
+                r["match_datetime"],
+                r["date"],
+                r["prediction"],
+                r["odd"],
+                r["home_score"],
+                r["away_score"],
+                r["status"],
+                r["source"]
+            )
+            for r in data
+        ]
+
+        cursor.executemany(query, values)
+        conn.commit()
+
+        print(f"✅ Inserted/Updated {cursor.rowcount} rows")
+
+    except Exception as e:
+        print("❌ DB ERROR:", e)
+        conn.rollback()
+
+    finally:
+        cursor.close()
+        conn.close()
+
+
+# ────────────────────────────────────────────────
+# MAIN
+# ────────────────────────────────────────────────
+def run():
+    predictions = load_csv(SCRAPED_CSV)
+    api_fixtures = load_csv(API_CSV)
+
+    matched = get_matched_fixtures(api_fixtures, predictions)
+
+    save_to_csv(matched)
+    insert_matched_fixtures(matched)
+
+
+if __name__ == "__main__":
+    run()

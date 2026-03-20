@@ -63,10 +63,9 @@ def get_ttl(match_date: date):
         return 300       # 5 min
     else:
         return 86400     # 1 day
+    
+    
 
-# ────────────────────────────────────────────────
-# MODEL
-# ────────────────────────────────────────────────
 class FixtureOut(BaseModel):
     fixture_id: int
     league: str
@@ -81,6 +80,9 @@ class FixtureOut(BaseModel):
     match_time: Optional[str]
     date: str
 
+    # 🔥 NEW (optional but powerful)
+    match_datetime: Optional[str] = None
+
     prediction: Optional[str] = None
     odd: Optional[str] = None
 
@@ -90,13 +92,15 @@ class FixtureOut(BaseModel):
 
     source: Optional[str] = None
     last_updated: Optional[str] = None
+
+
 # ────────────────────────────────────────────────
 # FIXTURES
 # ────────────────────────────────────────────────
 
 from datetime import date
 
-
+from zoneinfo import ZoneInfo
 
 @app.get("/fixtures/{fixture_date}", response_model=List[FixtureOut])
 def get_fixtures(fixture_date: str):
@@ -122,27 +126,45 @@ def get_fixtures(fixture_date: str):
 
         rows = cursor.fetchall()
 
-        def normalize_row(r):
-            if r.get("match_time"):
-                r["match_time"] = str(r["match_time"])
-            if r.get("date"):
-                r["date"] = str(r["date"])
-            if r.get("last_updated"):
-                r["last_updated"] = r["last_updated"].isoformat()
-            return r
+        result = []
 
-        rows = [normalize_row(r) for r in rows]
+        for r in rows:
+            row = dict(r)
+
+            # ✅ HANDLE match_datetime (UTC ONLY)
+            if row.get("match_datetime"):
+                dt = row["match_datetime"]
+
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=ZoneInfo("UTC"))
+
+                # 🔥 KEEP UTC ONLY (client will convert)
+                row["match_datetime"] = dt.isoformat()
+
+                # optional fallback display
+                row["match_time"] = dt.strftime("%H:%M")
+                row["date"] = dt.strftime("%Y-%m-%d")
+
+            else:
+                row["match_time"] = None
+                row["date"] = fixture_date
+
+            # ✅ serialize last_updated
+            if row.get("last_updated"):
+                row["last_updated"] = row["last_updated"].isoformat()
+
+            result.append(row)
 
         ttl = get_ttl(date.fromisoformat(fixture_date))
-        set_cache(cache_key, rows, ttl)
 
-        return rows
+        # ✅ cache CORRECT data
+        set_cache(cache_key, result, ttl)
+
+        return result
 
     finally:
         cursor.close()
         release_db(conn)
-
-
 
 # ────────────────────────────────────────────────
 # FIXTURE DETAILS

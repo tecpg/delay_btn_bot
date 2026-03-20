@@ -173,9 +173,9 @@ def get_fixtures(fixture_date: str):
 async def fixture_details(fixture_id: int):
 
     cache_key = f"fixture:{fixture_id}"
-    cached = get_cache(cache_key)
-    if cached:
-        return cached
+    # cached = get_cache(cache_key)
+    # if cached:
+    #     return cached
 
     async with httpx.AsyncClient(timeout=10) as client:
         try:

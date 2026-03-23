@@ -62,40 +62,61 @@ def scrape_tips():
         for x in range(10):
             i = x + 1
             try:
-                league = dom.xpath(f'/html/body/div[2]/div[4]/div/div/div/div/div[2]/div/table/tbody/tr[{i}]/td[4]/strong')[0].text
-                timez = dom.xpath(f'/html/body/div[2]/div[4]/div/div/div/div/div[2]/div/table/tbody/tr[{i}]/td[1]/strong')[0].text
-            
+                # 🔹 TIME
+                time_node = dom.xpath(f'//tbody/tr[{i}]/td[1]')
+                if not time_node:
+                    continue
+                timez = time_node[0].xpath("string()").strip()
 
-                # ⛔ HARD BLOCK INVALID TIMES
                 if not is_allowed_match_time(timez):
-                    
                     continue
 
-                picks_node = dom.xpath(f'/html/body/div[2]/div[4]/div/div/div/div/div[2]/div/table/tbody/tr[{i}]/td[7]/strong')
-                picks = picks_node[0].text.strip() if picks_node else "N/A"
-                
-                # Replace specific picks
+                # 🔹 LEAGUE
+                league_node = dom.xpath(f'//tbody/tr[{i}]/td[4]')
+                if not league_node:
+                    continue
+                league = league_node[0].xpath("string()").strip()
+
+                # 🔹 TEAMS
+                home_node = dom.xpath(f'(//tbody/tr[{i}]//a[contains(@class,"team-cell")])[1]')
+                away_node = dom.xpath(f'(//tbody/tr[{i}]//a[contains(@class,"team-cell")])[2]')
+
+                if not (home_node and away_node):
+                    continue
+
+                home_teams = home_node[0].xpath("string()").strip()
+                away_teams = away_node[0].xpath("string()").strip()
+
+                if not home_teams or not away_teams or home_teams == away_teams:
+                    continue
+
+                # 🔹 ODDS
+                odds_node = dom.xpath(f'//tbody/tr[{i}]//span[contains(@class,"odds-badge")]/text()')
+                if not odds_node:
+                    continue
+                odds = float(odds_node[0].strip())
+
+                # 🔹 PICKS
+                picks_node = dom.xpath(f'//tbody/tr[{i}]//span[contains(@class,"prediction-badge")]/text()')
+                picks = picks_node[0].strip() if picks_node else "N/A"
+
+                # Replace picks
                 if picks == "AWAY WIN":
                     picks = "AWAY DC"
                 elif picks == "HOME WIN":
                     picks = "HOME DC"
 
-                home_teams = dom.xpath(f'/html/body/div[2]/div[4]/div/div/div/div/div[2]/div/table/tbody/tr[{i}]/td[2]/div/div/a/h4/strong')[0].text
-                away_teams = dom.xpath(f'/html/body/div[2]/div[4]/div/div/div/div/div[2]/div/table/tbody/tr[{i}]/td[3]/div/div/a/h4/strong')[0].text
-                odds = float(dom.xpath(f'/html/body/div[2]/div[4]/div/div/div/div/div[2]/div/table/tbody/tr[{i}]/td[6]/a/strong')[0].text)
-                rates = dom.xpath(f'/html/body/div[2]/div[4]/div/div/div/div/div[2]/div/table/tbody/tr[{i}]/td[5]/strong')[0].text
-                
-                # if not kbt_funtions.check_odd_range(odds):
-                #     continue
-                # Handle score & results
-                try:
-                    results = dom.xpath(f'/html/body/div[2]/div[4]/div/div/div/div/div[2]/div/table/tbody/tr[{i}]/td[8]/a')[0].text
-                    if "NOT STARTED" not in results:
-                        continue
-                    else:
-                        results = "?"
-                        score = "?:?"
-                except:
+                # 🔹 RATE (optional)
+                rates_node = dom.xpath(f'//tbody/tr[{i}]//span[contains(@class,"chance-badge")]/text()')
+                rates = rates_node[0].strip() if rates_node else ""
+
+                # 🔹 RESULT / STATUS
+                result_node = dom.xpath(f'//tbody/tr[{i}]//span[contains(@class,"result-badge")]/text()')
+                result_text = result_node[0].strip() if result_node else ""
+
+                if "NOT STARTED" not in result_text.upper():
+                    continue
+                else:
                     results = "?"
                     score = "?:?"
 
@@ -124,13 +145,11 @@ def scrape_tips():
                 print(f"Error parsing row {i} on page {page}: {e}")
                 continue
 
-    # Shuffle and take max 15
+    # Shuffle and take max 45
     random.shuffle(predictions)
     predictions = predictions[:45]
 
     return predictions
-
-
 # =========================
 
 

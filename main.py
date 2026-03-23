@@ -1,22 +1,20 @@
-from apscheduler.schedulers.blocking import BlockingScheduler
-from datetime import datetime
+import json
 import httpx
 import redis
+from datetime import datetime
+from apscheduler.schedulers.blocking import BlockingScheduler
 from psycopg2.extras import RealDictCursor
 from psycopg2.pool import SimpleConnectionPool
 import kbt_load_env
-from datetime import datetime
-from zoneinfo import ZoneInfo
-import httpx
-# ────────────────────────────────────────────────
+
+# ─────────────────────────────
 # INIT
-# ────────────────────────────────────────────────
+# ─────────────────────────────
 redis_client = redis.from_url(kbt_load_env.redis_url, decode_responses=True)
 
 BASE_URL = "https://v3.football.api-sports.io"
 HEADERS = {"x-apisports-key": kbt_load_env.api_football_key}
 
-# DB POOL
 db_pool = SimpleConnectionPool(
     minconn=1,
     maxconn=10,
@@ -29,11 +27,9 @@ def get_db():
 def release_db(conn):
     db_pool.putconn(conn)
 
-# ────────────────────────────────────────────────
+# ─────────────────────────────
 # JOB
-# ────────────────────────────────────────────────
-
-
+# ─────────────────────────────
 def refresh_live_predictions():
     conn = get_db()
     cursor = conn.cursor(cursor_factory=RealDictCursor)
@@ -42,7 +38,7 @@ def refresh_live_predictions():
         print("⏱ Scheduler UTC:", datetime.utcnow())
 
         cursor.execute("""
-            SELECT fixture_id, date, match_datetime
+            SELECT fixture_id, date
             FROM pro_tips
             WHERE match_datetime BETWEEN
                 NOW() - INTERVAL '2 hours'
@@ -75,7 +71,6 @@ def refresh_live_predictions():
                     )
 
                     data = r.json()
-
                     if not data.get("response"):
                         continue
 
@@ -85,6 +80,7 @@ def refresh_live_predictions():
                     away = fixture["goals"]["away"] or 0
                     status = fixture["fixture"]["status"]["short"]
 
+                    # 🔥 UPDATE DB
                     cursor.execute("""
                         UPDATE pro_tips
                         SET home_score = %s,
@@ -94,9 +90,23 @@ def refresh_live_predictions():
                         WHERE fixture_id = %s
                     """, (home, away, status, fid))
 
+                    # 🔴 REALTIME PUSH (ONLY IF ACTIVE)
+                    if status in ["LIVE", "1H", "2H", "HT"]:
+                        update_payload = {
+                            "fixture_id": fid,
+                            "home_score": home,
+                            "away_score": away,
+                            "status": status
+                        }
+
+                        redis_client.publish(
+                            "live_scores",
+                            json.dumps(update_payload)
+                        )
+
                     print(f"🔄 {fid} → {home}-{away} ({status})")
 
-                    # clear cache once per date
+                    # 🧹 clear cache once per date
                     if row["date"] not in deleted_dates:
                         redis_client.delete(f"fixtures:{row['date']}")
                         deleted_dates.add(row["date"])
@@ -114,15 +124,16 @@ def refresh_live_predictions():
     finally:
         cursor.close()
         release_db(conn)
-# ────────────────────────────────────────────────
-# SCHEDULER (BLOCKING)
-# ────────────────────────────────────────────────
+
+# ─────────────────────────────
+# SCHEDULER
+# ─────────────────────────────
 scheduler = BlockingScheduler()
 
 scheduler.add_job(
     refresh_live_predictions,
     'interval',
-    seconds=90
+    seconds=60
 )
 
 print("🚀 Worker started...")

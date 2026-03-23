@@ -395,6 +395,36 @@ async def get_fixture_details(fixture_id: int):
         except Exception as exc:
             raise HTTPException(500, f"Internal error: {str(exc)}")
 
+
+from fastapi import WebSocket, WebSocketDisconnect
+import asyncio
+
+@app.websocket("/ws/live")
+async def websocket_live(ws: WebSocket):
+    await ws.accept()
+
+    pubsub = redis_client.pubsub()
+    pubsub.subscribe("live_scores")
+
+    print("🔌 WebSocket client connected")
+
+    try:
+        while True:
+            message = pubsub.get_message(ignore_subscribe_messages=True)
+
+            if message:
+                data = message["data"]
+
+                # 🔥 send update to Flutter
+                await ws.send_text(data)
+
+            await asyncio.sleep(0.1)
+
+    except WebSocketDisconnect:
+        print("❌ Client disconnected")
+
+    finally:
+        pubsub.close()
 # ────────────────────────────────────────────────
 # HEALTH
 # ────────────────────────────────────────────────

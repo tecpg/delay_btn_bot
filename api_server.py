@@ -398,7 +398,7 @@ async def get_fixture_details(fixture_id: int):
 
 from fastapi import WebSocket, WebSocketDisconnect
 import asyncio
-
+print("🔥 API SERVER VERSION 2 LOADED")
 @app.websocket("/ws/live")
 async def websocket_live(ws: WebSocket):
     await ws.accept()

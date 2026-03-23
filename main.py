@@ -81,6 +81,20 @@ def refresh_live_predictions():
                     status = fixture["fixture"]["status"]["short"]
 
                     # 🔥 UPDATE DB
+                 # OPTIONAL: fetch old values (for smart filtering)
+                    cursor.execute("""
+                        SELECT home_score, away_score, status
+                        FROM pro_tips
+                        WHERE fixture_id = %s
+                    """, (fid,))
+                    old = cursor.fetchone()
+
+                    old_home = old["home_score"] if old else None
+                    old_away = old["away_score"] if old else None
+                    old_status = old["status"] if old else None
+
+
+                    # UPDATE DB
                     cursor.execute("""
                         UPDATE pro_tips
                         SET home_score = %s,
@@ -90,8 +104,10 @@ def refresh_live_predictions():
                         WHERE fixture_id = %s
                     """, (home, away, status, fid))
 
-                    # 🔴 REALTIME PUSH (ONLY IF ACTIVE)
-                    if status in ["LIVE", "1H", "2H", "HT"]:
+
+                    # 🔥 ONLY SEND IF CHANGED (VERY IMPORTANT)
+                    if (old_home != home) or (old_away != away) or (old_status != status):
+
                         update_payload = {
                             "fixture_id": fid,
                             "home_score": home,
@@ -99,10 +115,9 @@ def refresh_live_predictions():
                             "status": status
                         }
 
-                        redis_client.publish(
-                            "live_scores",
-                            json.dumps(update_payload)
-                        )
+                        redis_client.publish("live_scores", json.dumps(update_payload))
+
+                        print("📡 SENT:", update_payload)
 
                     print(f"🔄 {fid} → {home}-{away} ({status})")
 

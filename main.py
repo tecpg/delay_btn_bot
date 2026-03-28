@@ -83,16 +83,21 @@ def refresh_live_predictions():
                     # 🔥 UPDATE DB
                  # OPTIONAL: fetch old values (for smart filtering)
                     cursor.execute("""
-                        SELECT home_score, away_score, status
-                        FROM pro_tips
+                        UPDATE pro_tips
+                        SET home_score = %s,
+                            away_score = %s,
+                            status = %s,
+                            last_updated = NOW()
                         WHERE fixture_id = %s
-                    """, (fid,))
-                    old = cursor.fetchone()
+                        AND (
+                            home_score IS DISTINCT FROM %s OR
+                            away_score IS DISTINCT FROM %s OR
+                            status IS DISTINCT FROM %s
+                        )
+                        RETURNING fixture_id
+                    """, (home, away, status, fid, home, away, status))
 
-                    old_home = old["home_score"] if old else None
-                    old_away = old["away_score"] if old else None
-                    old_status = old["status"] if old else None
-
+                    updated = cursor.fetchone()
 
                     # UPDATE DB
                     cursor.execute("""
@@ -105,19 +110,19 @@ def refresh_live_predictions():
                     """, (home, away, status, fid))
 
 
-                    # 🔥 ONLY SEND IF CHANGED (VERY IMPORTANT)
-                    if (old_home != home) or (old_away != away) or (old_status != status):
-
-                        update_payload = {
+                    #if updated:
+                    update_payload = {
                             "fixture_id": fid,
                             "home_score": home,
                             "away_score": away,
                             "status": status
                         }
 
-                        redis_client.publish("live_scores", json.dumps(update_payload))
+                    redis_client.publish("live_scores", json.dumps(update_payload))
+                    print("📡 SENT:", update_payload)
+                    redis_client.publish("live_scores", json.dumps(update_payload))
 
-                        print("📡 SENT:", update_payload)
+                    print("📡 SENT:", update_payload)
 
                     print(f"🔄 {fid} → {home}-{away} ({status})")
 
@@ -139,6 +144,10 @@ def refresh_live_predictions():
     finally:
         cursor.close()
         release_db(conn)
+
+
+
+
 
 # ─────────────────────────────
 # SCHEDULER

@@ -425,6 +425,13 @@ async def websocket_live(ws: WebSocket):
         pubsub.close()
         print("🛑 WS closed")
 
+redis_client.publish("live_scores", json.dumps({
+    "fixture_id": 999,
+    "home_score": 4,
+    "away_score": 2,
+    "status": "TEST"
+}))
+
 # ────────────────────────────────────────────────
 # HEALTH
 # ────────────────────────────────────────────────

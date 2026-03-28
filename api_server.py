@@ -404,27 +404,26 @@ async def websocket_live(ws: WebSocket):
     print("🔌 WebSocket connected")
 
     pubsub = redis_client.pubsub()
-    await pubsub.subscribe("live_scores")
+    pubsub.subscribe("live_scores")   # ✅ NO await
 
     try:
-        async for message in pubsub.listen():
-            if message["type"] == "message":
+        while True:
+            message = pubsub.get_message(ignore_subscribe_messages=True)
+
+            if message:
                 data = message["data"]
 
                 print("📡 Sending:", data)
                 await ws.send_text(data)
 
+            await asyncio.sleep(0.1)
+
     except WebSocketDisconnect:
         print("❌ Client disconnected")
 
-    except Exception as e:
-        print("🔥 WS ERROR:", e)
-
     finally:
-        await pubsub.close()
+        pubsub.close()
         print("🛑 WS closed")
-
-
 
 # ────────────────────────────────────────────────
 # HEALTH

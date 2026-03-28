@@ -157,7 +157,7 @@ scheduler = BlockingScheduler()
 scheduler.add_job(
     refresh_live_predictions,
     'interval',
-    seconds=60
+    minutes=5
 )
 
 print("🚀 Worker started...")

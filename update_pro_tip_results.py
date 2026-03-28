@@ -1,9 +1,13 @@
 import csv
+import json
 import mysql.connector
 import redis
 import kbt_funtions
 from consts import global_consts as gc
 import kbt_load_env
+
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
 API_RESULTS_CSV = gc.API_FOOTBALL_RESULTS_CSV
 DB_FIXTURES_CSV = gc.PRO_RESULTS_CSV
@@ -13,7 +17,12 @@ MATCHED_CSV = gc.MATCHED_RESULTS_CSV
 # MySQL connection
 # ------------------------
 def get_db():
-    return kbt_funtions.db_connection()
+    return psycopg2.connect(
+        kbt_load_env.supabase_url,
+        cursor_factory=RealDictCursor,
+        sslmode="require"
+    )
+
 
 # =========================
 # Create matched CSV
@@ -75,80 +84,98 @@ redis_client = redis.from_url(REDIS_URL, decode_responses=True)
 # ------------------------
 # Bulk MySQL update
 # ------------------------
-def update_mysql_bulk(csv_file):
+def update_postgres_bulk(csv_file):
     try:
-        connection = get_db()
-        cursor = connection.cursor()
-        
+        conn = get_db()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+
         fixture_ids = []
         home_scores = {}
         away_scores = {}
         statuses = {}
         dates_to_invalidate = set()
 
-        # Load CSV
+        updates_to_push = []
+
+        # LOAD CSV
         with open(csv_file, encoding="utf-8") as f:
             reader = csv.DictReader(f)
             for row in reader:
-                fixture_id = row["FixtureID"]
-                fixture_date = row.get("Date")  # optional if CSV has date
-                if fixture_date:
-                    dates_to_invalidate.add(fixture_date)
+                fid = row["FixtureID"]
 
-                if not fixture_id:
+                if not fid:
                     continue
-                fixture_ids.append(fixture_id)
-                home_scores[fixture_id] = row["home_score"]
-                away_scores[fixture_id] = row["away_score"]
-                statuses[fixture_id] = row["Status"]
+
+                fixture_ids.append(fid)
+
+                home = int(row["home_score"] or 0)
+                away = int(row["away_score"] or 0)
+                status = row["Status"]
+
+                home_scores[fid] = home
+                away_scores[fid] = away
+                statuses[fid] = status
+
+                updates_to_push.append({
+                    "fixture_id": int(fid),
+                    "home_score": home,
+                    "away_score": away,
+                    "status": status
+                })
 
         if not fixture_ids:
             print("No fixtures to update")
             return
 
-        # Build CASE statements
+        # 🔥 BULK UPDATE USING CASE
         home_case = "CASE fixture_id " + " ".join(
-            [f"WHEN {fid} THEN '{home_scores[fid]}'" for fid in fixture_ids]
+            [f"WHEN {fid} THEN {home_scores[fid]}" for fid in fixture_ids]
         ) + " END"
 
         away_case = "CASE fixture_id " + " ".join(
-            [f"WHEN {fid} THEN '{away_scores[fid]}'" for fid in fixture_ids]
+            [f"WHEN {fid} THEN {away_scores[fid]}" for fid in fixture_ids]
         ) + " END"
 
         status_case = "CASE fixture_id " + " ".join(
             [f"WHEN {fid} THEN '{statuses[fid]}'" for fid in fixture_ids]
         ) + " END"
 
-        # Single bulk update
         query = f"""
         UPDATE pro_tips
         SET home_score = {home_case},
             away_score = {away_case},
-            status = {status_case}
+            status = {status_case},
+            last_updated = NOW()
         WHERE fixture_id IN ({','.join(fixture_ids)})
         """
 
+        # ✅ CORRECT EXECUTION
         cursor.execute(query)
-        connection.commit()
+        conn.commit()
 
         print(f"✅ Bulk update done: {cursor.rowcount} rows updated")
 
         # ------------------------
-        # Invalidate Redis cache
+        # 🔥 REALTIME PUSH (NEW)
+        # ------------------------
+        for update in updates_to_push:
+            redis_client.publish("live_scores", json.dumps(update))
+
+        print(f"📡 Pushed {len(updates_to_push)} updates")
+
+        # ------------------------
+        # CACHE INVALIDATION
         # ------------------------
         for d in dates_to_invalidate:
-            cache_key = f"fixtures:{d}"
-            if redis_client.exists(cache_key):
-                redis_client.delete(cache_key)
-                print(f"🗑️  Redis cache invalidated for {cache_key}")
+            redis_client.delete(f"fixtures:{d}")
 
     except Exception as e:
-        print("Error:", e)
+        print("❌ DB ERROR:", e)
+        conn.rollback()
 
     finally:
-        if connection.is_connected():
-            cursor.close()
-            connection.close()
+        cursor.close()
+        conn.close()
 # =========================
 # Run script
 # =========================
@@ -156,4 +183,4 @@ if __name__ == "__main__":
 
     create_matched_csv()
 
-    update_mysql_bulk(MATCHED_CSV)
+    update_postgres_bulk(MATCHED_CSV)

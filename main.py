@@ -41,8 +41,8 @@ def refresh_live_predictions():
             SELECT fixture_id, date
             FROM pro_tips
             WHERE match_datetime BETWEEN
-                NOW() - INTERVAL '2 hours'
-                AND NOW() + INTERVAL '1 hour'
+                NOW() - INTERVAL '75 minutes'
+                AND NOW() + INTERVAL '10 minutes'
             AND (
                 last_updated IS NULL
                 OR last_updated < NOW() - INTERVAL '60 seconds'

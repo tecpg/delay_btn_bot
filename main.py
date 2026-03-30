@@ -1,4 +1,3 @@
-import json
 import httpx
 import redis
 from datetime import datetime
@@ -10,7 +9,10 @@ import kbt_load_env
 # ─────────────────────────────
 # INIT
 # ─────────────────────────────
-redis_client = redis.from_url(kbt_load_env.redis_url, decode_responses=True)
+redis_client = redis.from_url(
+    kbt_load_env.redis_url,
+    decode_responses=True
+)
 
 BASE_URL = "https://v3.football.api-sports.io"
 HEADERS = {"x-apisports-key": kbt_load_env.api_football_key}
@@ -37,6 +39,7 @@ def refresh_live_predictions():
     try:
         print("⏱ Scheduler UTC:", datetime.utcnow())
 
+        # 🔥 Only matches around current time
         cursor.execute("""
             SELECT fixture_id, date
             FROM pro_tips
@@ -60,18 +63,21 @@ def refresh_live_predictions():
 
         deleted_dates = set()
 
+        # 🔥 reuse HTTP client (performance)
         with httpx.Client(timeout=10) as client:
             for row in rows:
-                try:
-                    fid = row["fixture_id"]
+                fid = row["fixture_id"]
 
-                    r = client.get(
+                try:
+                    response = client.get(
                         f"{BASE_URL}/fixtures?id={fid}",
                         headers=HEADERS
                     )
 
-                    data = r.json()
+                    data = response.json()
+
                     if not data.get("response"):
+                        print(f"⚠️ No data for {fid}")
                         continue
 
                     fixture = data["response"][0]
@@ -80,7 +86,7 @@ def refresh_live_predictions():
                     away = fixture["goals"]["away"] or 0
                     status = fixture["fixture"]["status"]["short"]
 
-                    # ✅ SINGLE OPTIMIZED UPDATE
+                    # ✅ update ONLY if changed
                     cursor.execute("""
                         UPDATE pro_tips
                         SET home_score = %s,
@@ -93,32 +99,25 @@ def refresh_live_predictions():
                             away_score IS DISTINCT FROM %s OR
                             status IS DISTINCT FROM %s
                         )
-                        RETURNING fixture_id
-                    """, (home, away, status, fid, home, away, status))
+                    """, (
+                        home, away, status,
+                        fid,
+                        home, away, status
+                    ))
 
-                    updated = cursor.fetchone()
-
-                    # ✅ ONLY SEND IF CHANGED
-                    if updated:
-                        update_payload = {
-                            "fixture_id": fid,
-                            "home_score": home,
-                            "away_score": away,
-                            "status": status
-                        }
-
-                        redis_client.publish("live_scores", json.dumps(update_payload))
-                        print("📡 SENT:", update_payload)
-
-                    print(f"🔄 {fid} → {home}-{away} ({status})")
+                    if cursor.rowcount > 0:
+                        print(f"🔄 UPDATED {fid} → {home}-{away} ({status})")
+                    else:
+                        print(f"⏭️ SKIPPED {fid} (no change)")
 
                     # 🧹 clear cache once per date
                     if row["date"] not in deleted_dates:
                         redis_client.delete(f"fixtures:{row['date']}")
                         deleted_dates.add(row["date"])
+                        print(f"🗑 Cache cleared for {row['date']}")
 
                 except Exception as e:
-                    print(f"❌ Error {fid}:", e)
+                    print(f"❌ Error {fid}: {e}")
 
         conn.commit()
         print("✅ Scheduler commit complete")
@@ -132,7 +131,6 @@ def refresh_live_predictions():
         release_db(conn)
 
 
-
 # ─────────────────────────────
 # SCHEDULER
 # ─────────────────────────────
@@ -141,7 +139,9 @@ scheduler = BlockingScheduler()
 scheduler.add_job(
     refresh_live_predictions,
     'interval',
-    minutes=5
+    minutes=5,
+    max_instances=1,      # 🔥 prevent overlapping jobs
+    coalesce=True         # 🔥 skip missed runs
 )
 
 print("🚀 Worker started...")

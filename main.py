@@ -39,7 +39,6 @@ def refresh_live_predictions():
     try:
         print("⏱ Scheduler UTC:", datetime.utcnow())
 
-        # 🔥 Only matches around current time
         cursor.execute("""
             SELECT fixture_id, date
             FROM pro_tips
@@ -63,21 +62,18 @@ def refresh_live_predictions():
 
         deleted_dates = set()
 
-        # 🔥 reuse HTTP client (performance)
         with httpx.Client(timeout=10) as client:
             for row in rows:
-                fid = row["fixture_id"]
-
                 try:
-                    response = client.get(
+                    fid = row["fixture_id"]
+
+                    r = client.get(
                         f"{BASE_URL}/fixtures?id={fid}",
                         headers=HEADERS
                     )
 
-                    data = response.json()
-
+                    data = r.json()
                     if not data.get("response"):
-                        print(f"⚠️ No data for {fid}")
                         continue
 
                     fixture = data["response"][0]
@@ -99,25 +95,17 @@ def refresh_live_predictions():
                             away_score IS DISTINCT FROM %s OR
                             status IS DISTINCT FROM %s
                         )
-                    """, (
-                        home, away, status,
-                        fid,
-                        home, away, status
-                    ))
+                    """, (home, away, status, fid, home, away, status))
 
-                    if cursor.rowcount > 0:
-                        print(f"🔄 UPDATED {fid} → {home}-{away} ({status})")
-                    else:
-                        print(f"⏭️ SKIPPED {fid} (no change)")
+                    print(f"🔄 {fid} → {home}-{away} ({status})")
 
                     # 🧹 clear cache once per date
                     if row["date"] not in deleted_dates:
                         redis_client.delete(f"fixtures:{row['date']}")
                         deleted_dates.add(row["date"])
-                        print(f"🗑 Cache cleared for {row['date']}")
 
                 except Exception as e:
-                    print(f"❌ Error {fid}: {e}")
+                    print(f"❌ Error {fid}:", e)
 
         conn.commit()
         print("✅ Scheduler commit complete")
@@ -129,7 +117,6 @@ def refresh_live_predictions():
     finally:
         cursor.close()
         release_db(conn)
-
 
 # ─────────────────────────────
 # SCHEDULER

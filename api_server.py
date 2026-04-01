@@ -119,10 +119,10 @@ def get_fixtures(fixture_date: str):
     if fixture_date == "today":
         fixture_date = str(date.today())
 
-    cache_key = f"fixtures:{fixture_date}"
-    cached = get_cache(cache_key)
-    if cached:
-        return cached
+    # cache_key = f"fixtures:{fixture_date}"
+    # cached = get_cache(cache_key)
+    # if cached:
+    #     return cached
 
     conn = get_db()
     cursor = conn.cursor(cursor_factory=RealDictCursor)

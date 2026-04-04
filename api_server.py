@@ -81,6 +81,7 @@ class FixtureOut(BaseModel):
     fixture_id: int
     league: str
     league_logo: Optional[str] = None
+    league_country: Optional[str] = None
 
     home_team: str
     home_logo: Optional[str] = None

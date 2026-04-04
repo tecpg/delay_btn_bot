@@ -106,18 +106,7 @@ def get_matched_fixtures(api_fixtures, predictions):
                     print("❌ datetime parse error:", e)
 
 
-                # Extract elapsed and extra time from status
-                status_data = fixture.get("status")
-                elapsed = None
-                extra = None
-                status_short = None
-
-                if isinstance(status_data, dict):
-                    status_short = status_data.get("short")
-                    elapsed = status_data.get("elapsed")
-                    extra = status_data.get("extra")
-                else:
-                    status_short = status_data
+               
 
                 matched.append({
                     "fixture_id": int(fixture["Fixture ID"]),
@@ -137,9 +126,9 @@ def get_matched_fixtures(api_fixtures, predictions):
                     "home_score": fixture.get("Home Score") or 0,
                     "away_score": fixture.get("Away Score") or 0,
 
-                    "status": status_short,
-                    "elapsed": elapsed,      # ← Added
-                    "extra": extra,          # ← Added
+                    "status": fixture.get("Status"),
+                    "elapsed": fixture.get("Elapsed"),      # ← Added
+                    "extra":fixture.get("Extra"),          # ← Added
 
                     "prediction": pred["Tip"],
                     "odd": pred["Odd"],

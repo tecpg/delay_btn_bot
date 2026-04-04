@@ -88,6 +88,7 @@ def refresh_live_predictions():
                         SET home_score = %s,
                             away_score = %s,
                             status = %s,
+                                   
                             last_updated = NOW()
                         WHERE fixture_id = %s
                         AND (

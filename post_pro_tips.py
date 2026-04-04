@@ -65,6 +65,7 @@ def load_csv(path):
 # ────────────────────────────────────────────────
 # MATCH
 # ────────────────────────────────────────────────
+
 def get_matched_fixtures(api_fixtures, predictions):
     matched = []
 
@@ -106,6 +107,7 @@ def get_matched_fixtures(api_fixtures, predictions):
                     "fixture_id": int(fixture["Fixture ID"]),
                     "league": fixture["League"],
                     "league_logo": fixture["League Logo"],
+                    "league_country": fixture["League Country"],
                     "date": fixture.get("Date"),
 
                   
@@ -129,8 +131,6 @@ def get_matched_fixtures(api_fixtures, predictions):
                 break
 
     return matched
-
-
 # ────────────────────────────────────────────────
 # SAVE CSV
 # ────────────────────────────────────────────────
@@ -154,9 +154,8 @@ def save_to_csv(data):
 
     print(f"✅ CSV saved → {OUTPUT_CSV}")
 
-
 # ────────────────────────────────────────────────
-# INSERT (POSTGRES)
+# INSERT / UPSERT into pro_tips (POSTGRES)
 # ────────────────────────────────────────────────
 def insert_matched_fixtures(data):
     if not data:
@@ -168,17 +167,28 @@ def insert_matched_fixtures(data):
 
     try:
         query = """
-                INSERT INTO pro_tips (
-                fixture_id, league, league_logo,
-                home_team, home_logo,
-                away_team, away_logo,
-                match_time, match_datetime, date,
-                prediction, odd,
-                home_score, away_score,
-                status, source
+            INSERT INTO pro_tips (
+                fixture_id, 
+                league, 
+                league_country,      -- ← Added
+                league_logo,
+                home_team, 
+                home_logo,
+                away_team, 
+                away_logo,
+                match_time, 
+                match_datetime, 
+                date,
+                prediction, 
+                odd,
+                home_score, 
+                away_score,
+                status, 
+                source
             )
             VALUES (
-                %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s
+                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 
+                %s, %s, %s, %s, %s, %s, %s
             )
             ON CONFLICT (fixture_id)
             DO UPDATE SET
@@ -186,30 +196,31 @@ def insert_matched_fixtures(data):
                 odd = EXCLUDED.odd,
                 source = EXCLUDED.source,
                 match_datetime = EXCLUDED.match_datetime,
+                league_country = EXCLUDED.league_country,   -- ← Also update on conflict
                 last_updated = NOW()
         """
 
-        values = [
-            (
-                r["fixture_id"],
-                r["league"],
-                r["league_logo"],
-                r["home_team"],
-                r["home_logo"],
-                r["away_team"],
-                r["away_logo"],
-                r["match_time"],
-                r["match_datetime"],
-                r["date"],
-                r["prediction"],
-                r["odd"],
-                r["home_score"],
-                r["away_score"],
-                r["status"],
-                r["source"]
-            )
-            for r in data
-        ]
+        values = []
+        for r in data:
+            values.append((
+                r.get("fixture_id"),
+                r.get("league"),
+                r.get("league_country"),           # ← Added
+                r.get("league_logo"),
+                r.get("home_team"),
+                r.get("home_logo"),
+                r.get("away_team"),
+                r.get("away_logo"),
+                r.get("match_time"),
+                r.get("match_datetime"),
+                r.get("date"),
+                r.get("prediction"),
+                r.get("odd"),
+                r.get("home_score") or 0,
+                r.get("away_score") or 0,
+                r.get("status"),
+                r.get("source")
+            ))
 
         cursor.executemany(query, values)
         conn.commit()
@@ -223,8 +234,6 @@ def insert_matched_fixtures(data):
     finally:
         cursor.close()
         conn.close()
-
-
 # ────────────────────────────────────────────────
 # MAIN
 # ────────────────────────────────────────────────

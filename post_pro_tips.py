@@ -66,6 +66,8 @@ def load_csv(path):
 # MATCH
 # ────────────────────────────────────────────────
 
+
+
 def get_matched_fixtures(api_fixtures, predictions):
     matched = []
 
@@ -103,14 +105,27 @@ def get_matched_fixtures(api_fixtures, predictions):
                 except Exception as e:
                     print("❌ datetime parse error:", e)
 
+
+                # Extract elapsed and extra time from status
+                status_data = fixture.get("status")
+                elapsed = None
+                extra = None
+                status_short = None
+
+                if isinstance(status_data, dict):
+                    status_short = status_data.get("short")
+                    elapsed = status_data.get("elapsed")
+                    extra = status_data.get("extra")
+                else:
+                    status_short = status_data
+
                 matched.append({
                     "fixture_id": int(fixture["Fixture ID"]),
                     "league": fixture["League"],
-                    "league_logo": fixture["League Logo"],
-                    "league_country": fixture["League Country"],
+                    "league_logo": fixture.get("League Logo"),
+                    "league_country": fixture.get("League Country"),
                     "date": fixture.get("Date"),
 
-                  
                     "match_time": match_time,
                     "match_datetime": match_datetime,  # ✅ ADD THIS
 
@@ -121,7 +136,10 @@ def get_matched_fixtures(api_fixtures, predictions):
 
                     "home_score": fixture.get("Home Score") or 0,
                     "away_score": fixture.get("Away Score") or 0,
-                    "status": fixture.get("Status"),
+
+                    "status": status_short,
+                    "elapsed": elapsed,      # ← Added
+                    "extra": extra,          # ← Added
 
                     "prediction": pred["Tip"],
                     "odd": pred["Odd"],
@@ -170,7 +188,7 @@ def insert_matched_fixtures(data):
             INSERT INTO pro_tips (
                 fixture_id, 
                 league, 
-                league_country,      -- ← Added
+                league_country,
                 league_logo,
                 home_team, 
                 home_logo,
@@ -183,12 +201,14 @@ def insert_matched_fixtures(data):
                 odd,
                 home_score, 
                 away_score,
-                status, 
+                status,
+                elapsed,        -- ← Added
+                extra,          -- ← Added
                 source
             )
             VALUES (
                 %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 
-                %s, %s, %s, %s, %s, %s, %s
+                %s, %s, %s, %s, %s, %s, %s, %s, %s
             )
             ON CONFLICT (fixture_id)
             DO UPDATE SET
@@ -196,7 +216,9 @@ def insert_matched_fixtures(data):
                 odd = EXCLUDED.odd,
                 source = EXCLUDED.source,
                 match_datetime = EXCLUDED.match_datetime,
-                league_country = EXCLUDED.league_country,   -- ← Also update on conflict
+                league_country = EXCLUDED.league_country,
+                elapsed = EXCLUDED.elapsed,           -- ← Update elapsed
+                extra = EXCLUDED.extra,               -- ← Update extra
                 last_updated = NOW()
         """
 
@@ -205,7 +227,7 @@ def insert_matched_fixtures(data):
             values.append((
                 r.get("fixture_id"),
                 r.get("league"),
-                r.get("league_country"),           # ← Added
+                r.get("league_country"),
                 r.get("league_logo"),
                 r.get("home_team"),
                 r.get("home_logo"),
@@ -219,6 +241,8 @@ def insert_matched_fixtures(data):
                 r.get("home_score") or 0,
                 r.get("away_score") or 0,
                 r.get("status"),
+                r.get("elapsed"),      # ← Added
+                r.get("extra"),        # ← Added
                 r.get("source")
             ))
 

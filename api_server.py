@@ -101,6 +101,8 @@ class FixtureOut(BaseModel):
     home_score: Optional[int] = None
     away_score: Optional[int] = None
     status: Optional[str] = None
+    elapsed: Optional[str] = None
+    extra: Optional[str] = None
 
     source: Optional[str] = None
     last_updated: Optional[str] = None

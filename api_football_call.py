@@ -23,13 +23,13 @@ def run():
         with open(csv_file, mode="w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
 
-            # CSV Header - Added League Country
+            # CSV Header - Added elapsed and extra time
             writer.writerow([
                 "Fixture ID",
                 "League",
                 "League Logo",
                 "League Flag",
-                "League Country",      # ← NEW COLUMN
+                "League Country",
                 "Date",
                 "Match Time",
                 "Home Team",
@@ -38,7 +38,9 @@ def run():
                 "Away Logo",
                 "Home Score",
                 "Away Score",
-                "Status"
+                "Status",
+                "Elapsed",      # ← New
+                "Extra Time"    # ← New
             ])
 
             for match in fixtures:
@@ -66,7 +68,7 @@ def run():
                 league_name = league.get("name")
                 league_logo = league.get("logo")
                 league_flag = league.get("flag")
-                league_country = league.get("country")          # ← This is what you want
+                league_country = league.get("country")
 
                 # Teams
                 home = teams.get("home", {})
@@ -82,17 +84,26 @@ def run():
                 score_home = goals.get("home")
                 score_away = goals.get("away")
 
-                # Status
+                # Status + Elapsed + Extra Time
                 status = fixture.get("status", {})
-                status_short = status.get("short") if isinstance(status, dict) else status
+                status_short = ""
+                elapsed = None
+                extra = None
 
-                # Write row with League Country
+                if isinstance(status, dict):
+                    status_short = status.get("short")
+                    elapsed = status.get("elapsed")
+                    extra = status.get("extra")
+                else:
+                    status_short = str(status)
+
+                # Write row
                 writer.writerow([
                     fixture_id,
                     league_name,
                     league_logo,
                     league_flag,
-                    league_country,           # ← Added here
+                    league_country,
                     match_date,
                     match_time,
                     home_name,
@@ -101,13 +112,21 @@ def run():
                     away_logo,
                     score_home,
                     score_away,
-                    status_short
+                    status_short,
+                    elapsed,       # ← Added
+                    extra          # ← Added
                 ])
+
+                # Nice print output
+                elapsed_str = f"{elapsed}'" if elapsed is not None else ""
+                if extra:
+                    elapsed_str = f"{elapsed}+{extra}'"
 
                 print(
                     f"{fixture_id} | {match_date} {match_time} | "
-                    f"{league_country} - {league_name} | "
-                    f"{home_name} {score_home} - {score_away} {away_name} | {status_short}"
+                    f"{league_country or ''} - {league_name} | "
+                    f"{home_name} {score_home or ''} - {score_away or ''} {away_name} | "
+                    f"{status_short} {elapsed_str}"
                 )
 
         print(f"\nAll matches saved to {csv_file}")
@@ -120,3 +139,4 @@ def run():
 
 if __name__ == "__main__":
     run()
+

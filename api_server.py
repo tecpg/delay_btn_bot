@@ -77,43 +77,53 @@ def get_ttl(match_date: date):
     
     
 
-def extract_form_data(fixtures_data, is_home=True):
-    """Extract form data with dates"""
-    form_list = []
+def process_form_data(fixtures_data, current_team_name):
+    """Process form data for a specific team
+    fixtures_data: list of fixtures from API
+    current_team_name: name of the team we're showing form for (e.g., "Barcelona")
+    """
+    form_results = []
     
-    for f in fixtures_data[:5]:
-        home_goals = f.get("goals", {}).get("home") or 0
-        away_goals = f.get("goals", {}).get("away") or 0
+    for match in fixtures_data[:5]:
+        home_team = match.get("teams", {}).get("home", {}).get("name", "")
+        away_team = match.get("teams", {}).get("away", {}).get("name", "")
+        home_goals = match.get("goals", {}).get("home") or 0
+        away_goals = match.get("goals", {}).get("away") or 0
+        home_logo = match.get("teams", {}).get("home", {}).get("logo", "")
+        away_logo = match.get("teams", {}).get("away", {}).get("logo", "")
         
-        if is_home:
-            # For home team: result based on home goals vs away goals
-            if home_goals > away_goals:
-                result_str = "W"
-            elif home_goals == away_goals:
-                result_str = "D"
-            else:
-                result_str = "L"
-            
-            opponent = f.get("teams", {}).get("away", {}).get("name", "Unknown")
-            opponent_logo = f.get("teams", {}).get("away", {}).get("logo")
-            score_display = f"{home_goals}-{away_goals}"
+        # Determine if current team is home or away in this fixture
+        if home_team == current_team_name:
+            # Current team played at HOME
+            our_score = home_goals
+            their_score = away_goals
+            opponent = away_team
+            opponent_logo = away_logo
+            location = "home"
+        elif away_team == current_team_name:
+            # Current team played AWAY
+            our_score = away_goals
+            their_score = home_goals
+            opponent = home_team
+            opponent_logo = home_logo
+            location = "away"
         else:
-            # For away team: result based on away goals vs home goals
-            if away_goals > home_goals:
-                result_str = "W"
-            elif away_goals == home_goals:
-                result_str = "D"
-            else:
-                result_str = "L"
-            
-            opponent = f.get("teams", {}).get("home", {}).get("name", "Unknown")
-            opponent_logo = f.get("teams", {}).get("home", {}).get("logo")
-            score_display = f"{away_goals}-{home_goals}"
+            # Current team not found in this fixture (skip)
+            continue
         
-        league_name = f.get("league", {}).get("name", "Unknown League")
+        # Calculate result
+        if our_score > their_score:
+            result = "W"
+        elif our_score == their_score:
+            result = "D"
+        else:
+            result = "L"
+        
+        score_display = f"{our_score}-{their_score}"
+        league_name = match.get("league", {}).get("name", "Unknown League")
         
         # Extract match date
-        match_date = f.get("fixture", {}).get("date")
+        match_date = match.get("fixture", {}).get("date")
         formatted_date = None
         formatted_datetime = None
         
@@ -128,20 +138,20 @@ def extract_form_data(fixtures_data, is_home=True):
                 formatted_date = match_date[:10] if len(match_date) >= 10 else match_date
                 formatted_datetime = match_date
         
-        form_list.append({
+        form_results.append({
             "opponent": opponent,
             "opponent_logo": opponent_logo,
-            "result": result_str,
+            "result": result,
             "score": score_display,
             "league": league_name,
             "date": formatted_date,
             "datetime": formatted_datetime,
             "home_score": home_goals,
-            "away_score": away_goals
+            "away_score": away_goals,
+            "location": location  # Optional: add location (home/away)
         })
     
-    return form_list
-
+    return form_results
 
 
 class FixtureOut(BaseModel):
@@ -464,16 +474,23 @@ async def get_fixture_details(fixture_id: int):
             ]
 
             # ───────── HOME FORM ─────────
+         
+         # In your fixture details endpoint, after fetching form data:
+
+            # Get current team names
+            home_team_name = fixture["teams"]["home"]["name"]  # "Barcelona"
+            away_team_name = fixture["teams"]["away"]["name"]  # "Atletico Madrid"
+
+            # ───────── HOME FORM (for Barcelona) ─────────
             home_form_resp = responses[idx]; idx += 1
             home_form_data = home_form_resp.json().get("response", []) if not isinstance(home_form_resp, Exception) else []
-            result["home_form"] = extract_form_data(home_form_data, is_home=True)
+            result["home_form"] = process_form_data(home_form_data, home_team_name)
 
-            # ───────── AWAY FORM ─────────
+            # ───────── AWAY FORM (for Atletico Madrid) ─────────
             away_form_resp = responses[idx]; idx += 1
             away_form_data = away_form_resp.json().get("response", []) if not isinstance(away_form_resp, Exception) else []
-            result["away_form"] = extract_form_data(away_form_data, is_home=False)
-                    # ─────────────────────────────
-            # 5. SAVE TO DATABASE
+            result["away_form"] = process_form_data(away_form_data, away_team_name)         # ─────────────────────────────
+                        # 5. SAVE TO DATABASE
             # ─────────────────────────────
             conn = get_db()
             cursor = conn.cursor()

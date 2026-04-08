@@ -400,28 +400,49 @@ async def get_fixture_details(fixture_id: int):
                         # ───────── HOME FORM ─────────
             home_form_resp = responses[idx]; idx += 1
 
-            result["home_form"] = [
-                {
+                    # ───────── HOME FORM ─────────
+            home_form_resp = responses[idx]; idx += 1
+            home_form_data = home_form_resp.json().get("response", []) if not isinstance(home_form_resp, Exception) else []
+
+            result["home_form"] = []
+            for f in home_form_data[:5]:   # Last 5 matches
+                home_goals = f["goals"]["home"] or 0
+                away_goals = f["goals"]["away"] or 0
+
+                if home_goals > away_goals:
+                    result_str = "W"
+                elif home_goals == away_goals:
+                    result_str = "D"
+                else:
+                    result_str = "L"
+
+                result["home_form"].append({
                     "opponent": f["teams"]["away"]["name"],
-                    "result": f["goals"]["home"] > f["goals"]["away"]
-                        and "W" or (f["goals"]["home"] == f["goals"]["away"] and "D" or "L"),
-                    "score": f"{f['goals']['home']}-{f['goals']['away']}"
-                }
-                for f in home_form_resp.json().get("response", [])
-            ]
+                    "result": result_str,
+                    "score": f"{home_goals}-{away_goals}"
+                })
 
             # ───────── AWAY FORM ─────────
             away_form_resp = responses[idx]; idx += 1
+            away_form_data = away_form_resp.json().get("response", []) if not isinstance(away_form_resp, Exception) else []
 
-            result["away_form"] = [
-                {
+            result["away_form"] = []
+            for f in away_form_data[:5]:   # Last 5 matches
+                home_goals = f["goals"]["home"] or 0
+                away_goals = f["goals"]["away"] or 0
+
+                if away_goals > home_goals:
+                    result_str = "W"
+                elif away_goals == home_goals:
+                    result_str = "D"
+                else:
+                    result_str = "L"
+
+                result["away_form"].append({
                     "opponent": f["teams"]["home"]["name"],
-                    "result": f["goals"]["away"] > f["goals"]["home"]
-                        and "W" or (f["goals"]["away"] == f["goals"]["home"] and "D" or "L"),
-                    "score": f"{f['goals']['away']}-{f['goals']['home']}"
-                }
-                for f in away_form_resp.json().get("response", [])
-            ]
+                    "result": result_str,
+                    "score": f"{away_goals}-{home_goals}"
+                })
             # ─────────────────────────────
             # 5. SAVE TO DATABASE
             # ─────────────────────────────

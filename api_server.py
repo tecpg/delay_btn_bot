@@ -195,21 +195,18 @@ def get_fixture_ttl(status: str):
         return CACHE_TTL_MEDIUM
 
 
+
 @app.get("/fixture-details/{fixture_id}")
 async def get_fixture_details(fixture_id: int):
 
     cache_key = f"fixture_full:{fixture_id}"
 
-    # ─────────────────────────────
-    # 1. REDIS CACHE
-    # ─────────────────────────────
+    # 1. Redis Cache
     cached = redis_client.get(cache_key)
     if cached:
         return json.loads(cached)
 
-    # ─────────────────────────────
-    # 2. DATABASE CHECK
-    # ─────────────────────────────
+    # 2. Database Check
     conn = get_db()
     cursor = conn.cursor(cursor_factory=RealDictCursor)
 
@@ -221,13 +218,12 @@ async def get_fixture_details(fixture_id: int):
         """, (fixture_id,))
 
         row = cursor.fetchone()
-
         if row:
             data = row["full_json"] if isinstance(row["full_json"], dict) else json.loads(row["full_json"])
             status = row["status_short"]
             age = (datetime.now(timezone.utc) - row["last_updated"]).total_seconds()
 
-            if status in ["FT", "AET", "PEN"] or age < 60:
+            if status in ["FT", "AET", "PEN"] or age < 90:   # 90 seconds freshness
                 redis_client.setex(cache_key, CACHE_TTL_LONG if status in ["FT", "AET", "PEN"] else CACHE_TTL_SHORT, json.dumps(data))
                 return data
 
@@ -235,23 +231,13 @@ async def get_fixture_details(fixture_id: int):
         cursor.close()
         release_db(conn)
 
-    # ─────────────────────────────
-    # 3. FETCH FROM API
-    # ─────────────────────────────
+    # 3. Fetch from API-Football
     async with httpx.AsyncClient(timeout=15) as client:
         try:
-            # Fetch main fixture
-            fixture_resp = await client.get(
-                f"{BASE_URL}/fixtures?id={fixture_id}",
-                headers=HEADERS
-            )
+            # Main Fixture
+            fixture_resp = await client.get(f"{BASE_URL}/fixtures?id={fixture_id}", headers=HEADERS)
             fixture_resp.raise_for_status()
-            fixture_data = fixture_resp.json()
-
-            if not fixture_data.get("response"):
-                raise HTTPException(404, "Fixture not found")
-
-            fixture = fixture_data["response"][0]
+            fixture = fixture_resp.json()["response"][0]
 
             league_id = fixture["league"]["id"]
             season = fixture["league"]["season"]
@@ -274,39 +260,38 @@ async def get_fixture_details(fixture_id: int):
                 }
             }
 
-            # ─────────────────────────────
-            # 4. PARALLEL CALLS
-            # ─────────────────────────────
+            # Parallel API Calls
             tasks = []
 
-            # Lineups (with substitutes)
+            # 1. Lineups (with substitutes)
             tasks.append(client.get(f"{BASE_URL}/fixtures/lineups?fixture={fixture_id}", headers=HEADERS))
 
-            # Standings
+            # 2. Standings
             tasks.append(client.get(f"{BASE_URL}/standings?league={league_id}&season={season}", headers=HEADERS))
 
-            # H2H
+            # 3. H2H
             tasks.append(client.get(f"{BASE_URL}/fixtures/headtohead?h2h={home_id}-{away_id}", headers=HEADERS))
 
-            # Odds
+            # 4. Form (Recent Form)
+            tasks.append(client.get(f"{BASE_URL}/teams/statistics?team={home_id}&league={league_id}&season={season}", headers=HEADERS))
+            tasks.append(client.get(f"{BASE_URL}/teams/statistics?team={away_id}&league={league_id}&season={season}", headers=HEADERS))
+
+            # 5. Events (Goals, Cards, Subs, VAR)
+            tasks.append(client.get(f"{BASE_URL}/fixtures/events?fixture={fixture_id}", headers=HEADERS))
+
+            # 6. Odds
             if status not in ["FT", "AET", "PEN"]:
                 tasks.append(client.get(f"{BASE_URL}/odds?fixture={fixture_id}&bookmaker=1", headers=HEADERS))
             else:
                 tasks.append(None)
 
-            # Stats (live only)
-            if status in ["1H", "2H", "HT", "LIVE"]:
-                tasks.append(client.get(f"{BASE_URL}/fixtures/statistics?fixture={fixture_id}", headers=HEADERS))
-            else:
-                tasks.append(None)
-
-            responses = await asyncio.gather(*[t for t in tasks if t is not None], return_exceptions=True)
+            responses = await asyncio.gather(*tasks, return_exceptions=True)
 
             idx = 0
 
-            # ───────── LINEUPS WITH SUBSTITUTES ─────────
+            # LINEUPS + SUBSTITUTES
             lineup_resp = responses[idx]; idx += 1
-            lineups_data = lineup_resp.json().get("response", [])
+            lineups_data = lineup_resp.json().get("response", []) if not isinstance(lineup_resp, Exception) else []
 
             result["lineups"] = []
             for team in lineups_data:
@@ -336,30 +321,36 @@ async def get_fixture_details(fixture_id: int):
                     ]
                 })
 
-            # ───────── STANDINGS ─────────
+            # STANDINGS
             stand_resp = responses[idx]; idx += 1
-            result["standings"] = stand_resp.json().get("response", [])
+            result["standings"] = stand_resp.json().get("response", []) if not isinstance(stand_resp, Exception) else []
 
-            # ───────── H2H ─────────
+            # H2H
             h2h_resp = responses[idx]; idx += 1
-            result["h2h"] = h2h_resp.json().get("response", [])[:8]
+            result["h2h"] = h2h_resp.json().get("response", [])[:8] if not isinstance(h2h_resp, Exception) else []
 
-            # ───────── ODDS ─────────
-            if tasks[3]:
-                odds_resp = responses[idx]; idx += 1
-                result["odds"] = odds_resp.json().get("response", [])
+            # FORM (Home & Away)
+            home_form_resp = responses[idx]; idx += 1
+            away_form_resp = responses[idx]; idx += 1
+
+            result["form"] = {
+                "home": home_form_resp.json().get("response", [{}])[0].get("form", "") if not isinstance(home_form_resp, Exception) else "",
+                "away": away_form_resp.json().get("response", [{}])[0].get("form", "") if not isinstance(away_form_resp, Exception) else ""
+            }
+
+            # EVENTS
+            events_resp = responses[idx]; idx += 1
+            result["events"] = events_resp.json().get("response", []) if not isinstance(events_resp, Exception) else []
+
+            # ODDS
+            if tasks[5]:
+                odds_resp = responses[idx]
+                result["odds"] = odds_resp.json().get("response", []) if not isinstance(odds_resp, Exception) else []
             else:
                 result["odds"] = None
 
-            # ───────── STATS ─────────
-            if tasks[4]:
-                stats_resp = responses[idx]
-                result["statistics"] = stats_resp.json().get("response", [])
-            else:
-                result["statistics"] = None
-
             # ─────────────────────────────
-            # 5. SAVE TO DATABASE
+            # SAVE TO DATABASE
             # ─────────────────────────────
             conn = get_db()
             cursor = conn.cursor()
@@ -382,9 +373,7 @@ async def get_fixture_details(fixture_id: int):
 
             conn.commit()
 
-            # ─────────────────────────────
-            # 6. CACHE
-            # ─────────────────────────────
+            # Cache
             ttl = get_fixture_ttl(status)
             redis_client.setex(cache_key, ttl, json.dumps(result))
 
@@ -396,8 +385,7 @@ async def get_fixture_details(fixture_id: int):
             if 'cursor' in locals():
                 cursor.close()
             if 'conn' in locals():
-                release_db(conn)    
-
+                release_db(conn)
 
 
 # ────────────────────────────────────────────────

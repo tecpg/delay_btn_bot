@@ -289,38 +289,38 @@ async def get_fixture_details(fixture_id: int):
             # ─────────────────────────────
             tasks = []
 
-            # lineups (only when not NS)
+            # 0. Lineups
             if status != "NS":
                 tasks.append(client.get(f"{BASE_URL}/fixtures/lineups?fixture={fixture_id}", headers=HEADERS))
             else:
                 tasks.append(None)
 
-            # standings (rarely changes)
+            # 1. Standings
             tasks.append(client.get(f"{BASE_URL}/standings?league={league_id}&season={season}", headers=HEADERS))
 
-            # h2h (rarely changes)
+            # 2. H2H
             tasks.append(client.get(f"{BASE_URL}/fixtures/headtohead?h2h={home_id}-{away_id}", headers=HEADERS))
 
-            # odds (only if not finished)
+            # 3. Odds
             if status not in ["FT", "AET", "PEN"]:
                 tasks.append(client.get(f"{BASE_URL}/odds?fixture={fixture_id}&bookmaker=1", headers=HEADERS))
             else:
                 tasks.append(None)
-            
-            # stats (only if live)
+
+            # 4. Stats
             if status in ["1H", "2H", "LIVE", "HT"]:
                 tasks.append(client.get(f"{BASE_URL}/fixtures/statistics?fixture={fixture_id}", headers=HEADERS))
             else:
                 tasks.append(None)
-            
-              # 🔥 EVENTS (always useful)
+
+            # 5. Events
             tasks.append(client.get(f"{BASE_URL}/fixtures/events?fixture={fixture_id}", headers=HEADERS))
 
-            # 🔥 TEAM FORM (last 5 matches)
+            # 6. Home Form
             tasks.append(client.get(f"{BASE_URL}/fixtures?team={home_id}&last=5", headers=HEADERS))
+
+            # 7. Away Form
             tasks.append(client.get(f"{BASE_URL}/fixtures?team={away_id}&last=5", headers=HEADERS))
-
-
 
             responses = await asyncio.gather(*[t for t in tasks if t is not None], return_exceptions=True)
 
@@ -395,16 +395,15 @@ async def get_fixture_details(fixture_id: int):
                 }
                 for e in events_resp.json().get("response", [])
             ]
-
-
             # ───────── HOME FORM ─────────
             home_form_resp = responses[idx]; idx += 1
             home_form_data = home_form_resp.json().get("response", []) if not isinstance(home_form_resp, Exception) else []
 
             result["home_form"] = []
             for f in home_form_data[:5]:   # Last 5 matches
-                home_goals = f["goals"]["home"] or 0
-                away_goals = f["goals"]["away"] or 0
+                home_goals = f.get("goals", {}).get("home") or 0
+                away_goals = f.get("goals", {}).get("away") or 0
+                opponent = f.get("teams", {}).get("away", {}).get("name", "Unknown")
 
                 if home_goals > away_goals:
                     result_str = "W"
@@ -414,7 +413,7 @@ async def get_fixture_details(fixture_id: int):
                     result_str = "L"
 
                 result["home_form"].append({
-                    "opponent": f["teams"]["away"]["name"],
+                    "opponent": opponent,
                     "result": result_str,
                     "score": f"{home_goals}-{away_goals}"
                 })
@@ -424,9 +423,10 @@ async def get_fixture_details(fixture_id: int):
             away_form_data = away_form_resp.json().get("response", []) if not isinstance(away_form_resp, Exception) else []
 
             result["away_form"] = []
-            for f in away_form_data[:5]:   # Last 5 matches
-                home_goals = f["goals"]["home"] or 0
-                away_goals = f["goals"]["away"] or 0
+            for f in away_form_data[:5]:
+                home_goals = f.get("goals", {}).get("home") or 0
+                away_goals = f.get("goals", {}).get("away") or 0
+                opponent = f.get("teams", {}).get("home", {}).get("name", "Unknown")
 
                 if away_goals > home_goals:
                     result_str = "W"
@@ -436,11 +436,11 @@ async def get_fixture_details(fixture_id: int):
                     result_str = "L"
 
                 result["away_form"].append({
-                    "opponent": f["teams"]["home"]["name"],
+                    "opponent": opponent,
                     "result": result_str,
                     "score": f"{away_goals}-{home_goals}"
                 })
-            # ─────────────────────────────
+ # ─────────────────────────────
             # 5. SAVE TO DATABASE
             # ─────────────────────────────
             conn = get_db()

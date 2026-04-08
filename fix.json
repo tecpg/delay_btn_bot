@@ -1,0 +1,3688 @@
+{
+    "h2h": [
+        {
+            "goals": {
+                "away": 0,
+                "home": 1
+            },
+            "score": {
+                "penalty": {
+                    "away": null,
+                    "home": null
+                },
+                "fulltime": {
+                    "away": 0,
+                    "home": 1
+                },
+                "halftime": {
+                    "away": 0,
+                    "home": 1
+                },
+                "extratime": {
+                    "away": null,
+                    "home": null
+                }
+            },
+            "teams": {
+                "away": {
+                    "id": 530,
+                    "logo": "https://media.api-sports.io/football/teams/530.png",
+                    "name": "Atletico Madrid",
+                    "winner": false
+                },
+                "home": {
+                    "id": 529,
+                    "logo": "https://media.api-sports.io/football/teams/529.png",
+                    "name": "Barcelona",
+                    "winner": true
+                }
+            },
+            "league": {
+                "id": 140,
+                "flag": "https://media.api-sports.io/flags/es.svg",
+                "logo": "https://media.api-sports.io/football/leagues/140.png",
+                "name": "La Liga",
+                "round": "Regular Season - 27",
+                "season": 2017,
+                "country": "Spain",
+                "standings": true
+            },
+            "fixture": {
+                "id": 9621,
+                "date": "2018-03-04T15:15:00+00:00",
+                "venue": {
+                    "id": 1462,
+                    "city": "Barcelona",
+                    "name": "Camp Nou"
+                },
+                "status": {
+                    "long": "Match Finished",
+                    "extra": null,
+                    "short": "FT",
+                    "elapsed": 90
+                },
+                "periods": {
+                    "first": 1520176500,
+                    "second": 1520180100
+                },
+                "referee": "Jesus Gil Manzano, Spain",
+                "timezone": "UTC",
+                "timestamp": 1520176500
+            }
+        },
+        {
+            "goals": {
+                "away": 1,
+                "home": 1
+            },
+            "score": {
+                "penalty": {
+                    "away": null,
+                    "home": null
+                },
+                "fulltime": {
+                    "away": 1,
+                    "home": 1
+                },
+                "halftime": {
+                    "away": 0,
+                    "home": 1
+                },
+                "extratime": {
+                    "away": null,
+                    "home": null
+                }
+            },
+            "teams": {
+                "away": {
+                    "id": 530,
+                    "logo": "https://media.api-sports.io/football/teams/530.png",
+                    "name": "Atletico Madrid",
+                    "winner": null
+                },
+                "home": {
+                    "id": 529,
+                    "logo": "https://media.api-sports.io/football/teams/529.png",
+                    "name": "Barcelona",
+                    "winner": null
+                }
+            },
+            "league": {
+                "id": 140,
+                "flag": "https://media.api-sports.io/flags/es.svg",
+                "logo": "https://media.api-sports.io/football/leagues/140.png",
+                "name": "La Liga",
+                "round": "Regular Season - 5",
+                "season": 2016,
+                "country": "Spain",
+                "standings": true
+            },
+            "fixture": {
+                "id": 20777,
+                "date": "2016-09-21T20:00:00+00:00",
+                "venue": {
+                    "id": 1462,
+                    "city": "Barcelona",
+                    "name": "Camp Nou"
+                },
+                "status": {
+                    "long": "Match Finished",
+                    "extra": null,
+                    "short": "FT",
+                    "elapsed": 90
+                },
+                "periods": {
+                    "first": 1474488000,
+                    "second": 1474491600
+                },
+                "referee": "David Fernandez Borbalan, Spain",
+                "timezone": "UTC",
+                "timestamp": 1474488000
+            }
+        },
+        {
+            "goals": {
+                "away": 0,
+                "home": 2
+            },
+            "score": {
+                "penalty": {
+                    "away": null,
+                    "home": null
+                },
+                "fulltime": {
+                    "away": 0,
+                    "home": 2
+                },
+                "halftime": {
+                    "away": 0,
+                    "home": 0
+                },
+                "extratime": {
+                    "away": null,
+                    "home": null
+                }
+            },
+            "teams": {
+                "away": {
+                    "id": 530,
+                    "logo": "https://media.api-sports.io/football/teams/530.png",
+                    "name": "Atletico Madrid",
+                    "winner": false
+                },
+                "home": {
+                    "id": 529,
+                    "logo": "https://media.api-sports.io/football/teams/529.png",
+                    "name": "Barcelona",
+                    "winner": true
+                }
+            },
+            "league": {
+                "id": 140,
+                "flag": "https://media.api-sports.io/flags/es.svg",
+                "logo": "https://media.api-sports.io/football/leagues/140.png",
+                "name": "La Liga",
+                "round": "Regular Season - 31",
+                "season": 2018,
+                "country": "Spain",
+                "standings": true
+            },
+            "fixture": {
+                "id": 27440,
+                "date": "2019-04-06T18:45:00+00:00",
+                "venue": {
+                    "id": 1462,
+                    "city": "Barcelona",
+                    "name": "Camp Nou"
+                },
+                "status": {
+                    "long": "Match Finished",
+                    "extra": null,
+                    "short": "FT",
+                    "elapsed": 90
+                },
+                "periods": {
+                    "first": 1554576300,
+                    "second": 1554579900
+                },
+                "referee": "Jesus Gil Manzano, Spain",
+                "timezone": "UTC",
+                "timestamp": 1554576300
+            }
+        },
+        {
+            "goals": {
+                "away": 1,
+                "home": 2
+            },
+            "score": {
+                "penalty": {
+                    "away": null,
+                    "home": null
+                },
+                "fulltime": {
+                    "away": 1,
+                    "home": 2
+                },
+                "halftime": {
+                    "away": 1,
+                    "home": 2
+                },
+                "extratime": {
+                    "away": null,
+                    "home": null
+                }
+            },
+            "teams": {
+                "away": {
+                    "id": 530,
+                    "logo": "https://media.api-sports.io/football/teams/530.png",
+                    "name": "Atletico Madrid",
+                    "winner": false
+                },
+                "home": {
+                    "id": 529,
+                    "logo": "https://media.api-sports.io/football/teams/529.png",
+                    "name": "Barcelona",
+                    "winner": true
+                }
+            },
+            "league": {
+                "id": 140,
+                "flag": "https://media.api-sports.io/flags/es.svg",
+                "logo": "https://media.api-sports.io/football/leagues/140.png",
+                "name": "La Liga",
+                "round": "Regular Season - 22",
+                "season": 2015,
+                "country": "Spain",
+                "standings": true
+            },
+            "fixture": {
+                "id": 203547,
+                "date": "2016-01-30T15:00:00+00:00",
+                "venue": {
+                    "id": 1462,
+                    "city": "Barcelona",
+                    "name": "Camp Nou"
+                },
+                "status": {
+                    "long": "Match Finished",
+                    "extra": null,
+                    "short": "FT",
+                    "elapsed": 90
+                },
+                "periods": {
+                    "first": 1454166000,
+                    "second": 1454169600
+                },
+                "referee": "Alberto Undiano, Spain",
+                "timezone": "UTC",
+                "timestamp": 1454166000
+            }
+        },
+        {
+            "goals": {
+                "away": 1,
+                "home": 3
+            },
+            "score": {
+                "penalty": {
+                    "away": null,
+                    "home": null
+                },
+                "fulltime": {
+                    "away": 1,
+                    "home": 3
+                },
+                "halftime": {
+                    "away": 0,
+                    "home": 2
+                },
+                "extratime": {
+                    "away": null,
+                    "home": null
+                }
+            },
+            "teams": {
+                "away": {
+                    "id": 530,
+                    "logo": "https://media.api-sports.io/football/teams/530.png",
+                    "name": "Atletico Madrid",
+                    "winner": false
+                },
+                "home": {
+                    "id": 529,
+                    "logo": "https://media.api-sports.io/football/teams/529.png",
+                    "name": "Barcelona",
+                    "winner": true
+                }
+            },
+            "league": {
+                "id": 140,
+                "flag": "https://media.api-sports.io/flags/es.svg",
+                "logo": "https://media.api-sports.io/football/leagues/140.png",
+                "name": "La Liga",
+                "round": "Regular Season - 18",
+                "season": 2014,
+                "country": "Spain",
+                "standings": true
+            },
+            "fixture": {
+                "id": 203895,
+                "date": "2015-01-11T20:00:00+00:00",
+                "venue": {
+                    "id": null,
+                    "city": null,
+                    "name": "Camp Nou (Barcelona)"
+                },
+                "status": {
+                    "long": "Match Finished",
+                    "extra": null,
+                    "short": "FT",
+                    "elapsed": 90
+                },
+                "periods": {
+                    "first": 1421006400,
+                    "second": 1421010000
+                },
+                "referee": "Alberto Undiano, Spain",
+                "timezone": "UTC",
+                "timestamp": 1421006400
+            }
+        }
+    ],
+    "odds": [
+        {
+            "league": {
+                "id": 2,
+                "flag": null,
+                "logo": "https://media.api-sports.io/football/leagues/2.png",
+                "name": "UEFA Champions League",
+                "season": 2025,
+                "country": "World"
+            },
+            "update": "2026-04-08T09:01:22+00:00",
+            "fixture": {
+                "id": 1534907,
+                "date": "2026-04-08T19:00:00+00:00",
+                "timezone": "UTC",
+                "timestamp": 1775674800
+            },
+            "bookmakers": [
+                {
+                    "id": 1,
+                    "bets": [
+                        {
+                            "id": 1,
+                            "name": "Match Winner",
+                            "values": [
+                                {
+                                    "odd": "1.51",
+                                    "value": "Home"
+                                },
+                                {
+                                    "odd": "4.60",
+                                    "value": "Draw"
+                                },
+                                {
+                                    "odd": "5.25",
+                                    "value": "Away"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 2,
+                            "name": "Home/Away",
+                            "values": [
+                                {
+                                    "odd": "1.20",
+                                    "value": "Home"
+                                },
+                                {
+                                    "odd": "3.95",
+                                    "value": "Away"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 3,
+                            "name": "Second Half Winner",
+                            "values": [
+                                {
+                                    "odd": "1.80",
+                                    "value": "Home"
+                                },
+                                {
+                                    "odd": "3.00",
+                                    "value": "Draw"
+                                },
+                                {
+                                    "odd": "4.33",
+                                    "value": "Away"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 4,
+                            "name": "Asian Handicap",
+                            "values": [
+                                {
+                                    "odd": "1.83",
+                                    "value": "Home -1"
+                                },
+                                {
+                                    "odd": "2.00",
+                                    "value": "Away -1"
+                                },
+                                {
+                                    "odd": "1.50",
+                                    "value": "Home -0.5"
+                                },
+                                {
+                                    "odd": "2.60",
+                                    "value": "Away -0.5"
+                                },
+                                {
+                                    "odd": "2.25",
+                                    "value": "Home -1.5"
+                                },
+                                {
+                                    "odd": "1.65",
+                                    "value": "Away -1.5"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 5,
+                            "name": "Goals Over/Under",
+                            "values": [
+                                {
+                                    "odd": "1.10",
+                                    "value": "Over 1.5"
+                                },
+                                {
+                                    "odd": "6.50",
+                                    "value": "Under 1.5"
+                                },
+                                {
+                                    "odd": "1.36",
+                                    "value": "Over 2.5"
+                                },
+                                {
+                                    "odd": "3.10",
+                                    "value": "Under 2.5"
+                                },
+                                {
+                                    "odd": "1.90",
+                                    "value": "Over 3.5"
+                                },
+                                {
+                                    "odd": "1.85",
+                                    "value": "Under 3.5"
+                                },
+                                {
+                                    "odd": "3.00",
+                                    "value": "Over 4.5"
+                                },
+                                {
+                                    "odd": "1.38",
+                                    "value": "Under 4.5"
+                                },
+                                {
+                                    "odd": "5.25",
+                                    "value": "Over 5.5"
+                                },
+                                {
+                                    "odd": "1.15",
+                                    "value": "Under 5.5"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 6,
+                            "name": "Goals Over/Under First Half",
+                            "values": [
+                                {
+                                    "odd": "1.85",
+                                    "value": "Over 1.5"
+                                },
+                                {
+                                    "odd": "1.85",
+                                    "value": "Under 1.5"
+                                },
+                                {
+                                    "odd": "3.55",
+                                    "value": "Over 2.5"
+                                },
+                                {
+                                    "odd": "1.25",
+                                    "value": "Under 2.5"
+                                },
+                                {
+                                    "odd": "1.18",
+                                    "value": "Over 0.5"
+                                },
+                                {
+                                    "odd": "4.33",
+                                    "value": "Under 0.5"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 26,
+                            "name": "Goals Over/Under - Second Half",
+                            "values": [
+                                {
+                                    "odd": "1.55",
+                                    "value": "Over 1.5"
+                                },
+                                {
+                                    "odd": "2.30",
+                                    "value": "Under 1.5"
+                                },
+                                {
+                                    "odd": "2.70",
+                                    "value": "Over 2.5"
+                                },
+                                {
+                                    "odd": "1.40",
+                                    "value": "Under 2.5"
+                                },
+                                {
+                                    "odd": "1.10",
+                                    "value": "Over 0.5"
+                                },
+                                {
+                                    "odd": "5.80",
+                                    "value": "Under 0.5"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 7,
+                            "name": "HT/FT Double",
+                            "values": [
+                                {
+                                    "odd": "15.00",
+                                    "value": "Home/Draw"
+                                },
+                                {
+                                    "odd": "31.00",
+                                    "value": "Home/Away"
+                                },
+                                {
+                                    "odd": "11.00",
+                                    "value": "Draw/Away"
+                                },
+                                {
+                                    "odd": "7.50",
+                                    "value": "Draw/Draw"
+                                },
+                                {
+                                    "odd": "2.15",
+                                    "value": "Home/Home"
+                                },
+                                {
+                                    "odd": "4.75",
+                                    "value": "Draw/Home"
+                                },
+                                {
+                                    "odd": "17.00",
+                                    "value": "Away/Home"
+                                },
+                                {
+                                    "odd": "15.00",
+                                    "value": "Away/Draw"
+                                },
+                                {
+                                    "odd": "8.50",
+                                    "value": "Away/Away"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 27,
+                            "name": "Clean Sheet - Home",
+                            "values": [
+                                {
+                                    "odd": "3.10",
+                                    "value": "Yes"
+                                },
+                                {
+                                    "odd": "1.33",
+                                    "value": "No"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 28,
+                            "name": "Clean Sheet - Away",
+                            "values": [
+                                {
+                                    "odd": "8.00",
+                                    "value": "Yes"
+                                },
+                                {
+                                    "odd": "1.05",
+                                    "value": "No"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 8,
+                            "name": "Both Teams Score",
+                            "values": [
+                                {
+                                    "odd": "1.44",
+                                    "value": "Yes"
+                                },
+                                {
+                                    "odd": "2.65",
+                                    "value": "No"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 29,
+                            "name": "Win to Nil - Home",
+                            "values": [
+                                {
+                                    "odd": "3.35",
+                                    "value": "Yes"
+                                },
+                                {
+                                    "odd": "1.25",
+                                    "value": "No"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 30,
+                            "name": "Win to Nil - Away",
+                            "values": [
+                                {
+                                    "odd": "12.00",
+                                    "value": "Yes"
+                                },
+                                {
+                                    "odd": "1.03",
+                                    "value": "No"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 9,
+                            "name": "Handicap Result",
+                            "values": [
+                                {
+                                    "odd": "2.25",
+                                    "value": "Home -1"
+                                },
+                                {
+                                    "odd": "2.45",
+                                    "value": "Away -1"
+                                },
+                                {
+                                    "odd": "3.80",
+                                    "value": "Draw -1"
+                                },
+                                {
+                                    "odd": "7.00",
+                                    "value": "Home -3"
+                                },
+                                {
+                                    "odd": "6.25",
+                                    "value": "Draw -3"
+                                },
+                                {
+                                    "odd": "1.22",
+                                    "value": "Away -3"
+                                },
+                                {
+                                    "odd": "3.85",
+                                    "value": "Home -2"
+                                },
+                                {
+                                    "odd": "4.33",
+                                    "value": "Draw -2"
+                                },
+                                {
+                                    "odd": "1.60",
+                                    "value": "Away -2"
+                                },
+                                {
+                                    "odd": "1.15",
+                                    "value": "Home +1"
+                                },
+                                {
+                                    "odd": "6.50",
+                                    "value": "Draw +1"
+                                },
+                                {
+                                    "odd": "10.00",
+                                    "value": "Away +1"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 10,
+                            "name": "Exact Score",
+                            "values": [
+                                {
+                                    "odd": "10.00",
+                                    "value": "1:0"
+                                },
+                                {
+                                    "odd": "9.00",
+                                    "value": "2:0"
+                                },
+                                {
+                                    "odd": "7.00",
+                                    "value": "2:1"
+                                },
+                                {
+                                    "odd": "11.00",
+                                    "value": "3:0"
+                                },
+                                {
+                                    "odd": "8.50",
+                                    "value": "3:1"
+                                },
+                                {
+                                    "odd": "13.00",
+                                    "value": "3:2"
+                                },
+                                {
+                                    "odd": "19.00",
+                                    "value": "4:0"
+                                },
+                                {
+                                    "odd": "13.00",
+                                    "value": "4:1"
+                                },
+                                {
+                                    "odd": "26.00",
+                                    "value": "0:0"
+                                },
+                                {
+                                    "odd": "8.50",
+                                    "value": "1:1"
+                                },
+                                {
+                                    "odd": "11.00",
+                                    "value": "2:2"
+                                },
+                                {
+                                    "odd": "19.00",
+                                    "value": "0:1"
+                                },
+                                {
+                                    "odd": "31.00",
+                                    "value": "0:2"
+                                },
+                                {
+                                    "odd": "61.00",
+                                    "value": "0:3"
+                                },
+                                {
+                                    "odd": "13.00",
+                                    "value": "1:2"
+                                },
+                                {
+                                    "odd": "29.00",
+                                    "value": "1:3"
+                                },
+                                {
+                                    "odd": "23.00",
+                                    "value": "2:3"
+                                },
+                                {
+                                    "odd": "29.00",
+                                    "value": "3:3"
+                                },
+                                {
+                                    "odd": "126.00",
+                                    "value": "0:4"
+                                },
+                                {
+                                    "odd": "67.00",
+                                    "value": "1:4"
+                                },
+                                {
+                                    "odd": "61.00",
+                                    "value": "2:4"
+                                },
+                                {
+                                    "odd": "21.00",
+                                    "value": "4:2"
+                                },
+                                {
+                                    "odd": "67.00",
+                                    "value": "3:4"
+                                },
+                                {
+                                    "odd": "34.00",
+                                    "value": "5:0"
+                                },
+                                {
+                                    "odd": "26.00",
+                                    "value": "5:1"
+                                },
+                                {
+                                    "odd": "34.00",
+                                    "value": "5:2"
+                                },
+                                {
+                                    "odd": "67.00",
+                                    "value": "6:0"
+                                },
+                                {
+                                    "odd": "56.00",
+                                    "value": "6:1"
+                                },
+                                {
+                                    "odd": "71.00",
+                                    "value": "6:2"
+                                },
+                                {
+                                    "odd": "41.00",
+                                    "value": "4:3"
+                                },
+                                {
+                                    "odd": "71.00",
+                                    "value": "5:3"
+                                },
+                                {
+                                    "odd": "126.00",
+                                    "value": "6:3"
+                                },
+                                {
+                                    "odd": "91.00",
+                                    "value": "4:4"
+                                },
+                                {
+                                    "odd": "126.00",
+                                    "value": "7:0"
+                                },
+                                {
+                                    "odd": "101.00",
+                                    "value": "7:1"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 11,
+                            "name": "Highest Scoring Half",
+                            "values": [
+                                {
+                                    "odd": "4.00",
+                                    "value": "Draw"
+                                },
+                                {
+                                    "odd": "2.80",
+                                    "value": "1st Half"
+                                },
+                                {
+                                    "odd": "1.95",
+                                    "value": "2nd Half"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 31,
+                            "name": "Correct Score - First Half",
+                            "values": [
+                                {
+                                    "odd": "4.20",
+                                    "value": "1:0"
+                                },
+                                {
+                                    "odd": "6.50",
+                                    "value": "2:0"
+                                },
+                                {
+                                    "odd": "10.00",
+                                    "value": "2:1"
+                                },
+                                {
+                                    "odd": "13.00",
+                                    "value": "3:0"
+                                },
+                                {
+                                    "odd": "19.00",
+                                    "value": "3:1"
+                                },
+                                {
+                                    "odd": "51.00",
+                                    "value": "3:2"
+                                },
+                                {
+                                    "odd": "41.00",
+                                    "value": "4:0"
+                                },
+                                {
+                                    "odd": "51.00",
+                                    "value": "4:1"
+                                },
+                                {
+                                    "odd": "4.33",
+                                    "value": "0:0"
+                                },
+                                {
+                                    "odd": "6.25",
+                                    "value": "1:1"
+                                },
+                                {
+                                    "odd": "29.00",
+                                    "value": "2:2"
+                                },
+                                {
+                                    "odd": "7.00",
+                                    "value": "0:1"
+                                },
+                                {
+                                    "odd": "21.00",
+                                    "value": "0:2"
+                                },
+                                {
+                                    "odd": "67.00",
+                                    "value": "0:3"
+                                },
+                                {
+                                    "odd": "19.00",
+                                    "value": "1:2"
+                                },
+                                {
+                                    "odd": "56.00",
+                                    "value": "1:3"
+                                },
+                                {
+                                    "odd": "81.00",
+                                    "value": "2:3"
+                                },
+                                {
+                                    "odd": "101.00",
+                                    "value": "4:2"
+                                },
+                                {
+                                    "odd": "101.00",
+                                    "value": "5:0"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 62,
+                            "name": "Correct Score - Second Half",
+                            "values": [
+                                {
+                                    "odd": "4.50",
+                                    "value": "1:0"
+                                },
+                                {
+                                    "odd": "6.50",
+                                    "value": "2:0"
+                                },
+                                {
+                                    "odd": "8.50",
+                                    "value": "2:1"
+                                },
+                                {
+                                    "odd": "12.00",
+                                    "value": "3:0"
+                                },
+                                {
+                                    "odd": "15.00",
+                                    "value": "3:1"
+                                },
+                                {
+                                    "odd": "34.00",
+                                    "value": "3:2"
+                                },
+                                {
+                                    "odd": "31.00",
+                                    "value": "4:0"
+                                },
+                                {
+                                    "odd": "41.00",
+                                    "value": "4:1"
+                                },
+                                {
+                                    "odd": "5.80",
+                                    "value": "0:0"
+                                },
+                                {
+                                    "odd": "6.00",
+                                    "value": "1:1"
+                                },
+                                {
+                                    "odd": "19.00",
+                                    "value": "2:2"
+                                },
+                                {
+                                    "odd": "8.00",
+                                    "value": "0:1"
+                                },
+                                {
+                                    "odd": "19.00",
+                                    "value": "0:2"
+                                },
+                                {
+                                    "odd": "56.00",
+                                    "value": "0:3"
+                                },
+                                {
+                                    "odd": "15.00",
+                                    "value": "1:2"
+                                },
+                                {
+                                    "odd": "46.00",
+                                    "value": "1:3"
+                                },
+                                {
+                                    "odd": "56.00",
+                                    "value": "2:3"
+                                },
+                                {
+                                    "odd": "91.00",
+                                    "value": "3:3"
+                                },
+                                {
+                                    "odd": "76.00",
+                                    "value": "4:2"
+                                },
+                                {
+                                    "odd": "76.00",
+                                    "value": "5:0"
+                                },
+                                {
+                                    "odd": "91.00",
+                                    "value": "5:1"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 12,
+                            "name": "Double Chance",
+                            "values": [
+                                {
+                                    "odd": "1.15",
+                                    "value": "Home/Draw"
+                                },
+                                {
+                                    "odd": "1.14",
+                                    "value": "Home/Away"
+                                },
+                                {
+                                    "odd": "2.45",
+                                    "value": "Draw/Away"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 13,
+                            "name": "First Half Winner",
+                            "values": [
+                                {
+                                    "odd": "1.90",
+                                    "value": "Home"
+                                },
+                                {
+                                    "odd": "2.70",
+                                    "value": "Draw"
+                                },
+                                {
+                                    "odd": "4.75",
+                                    "value": "Away"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 14,
+                            "name": "Team To Score First",
+                            "values": [
+                                {
+                                    "odd": "1.48",
+                                    "value": "Home"
+                                },
+                                {
+                                    "odd": "26.00",
+                                    "value": "Draw"
+                                },
+                                {
+                                    "odd": "2.65",
+                                    "value": "Away"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 15,
+                            "name": "Team To Score Last",
+                            "values": [
+                                {
+                                    "odd": "1.48",
+                                    "value": "Home"
+                                },
+                                {
+                                    "odd": "26.00",
+                                    "value": "Draw"
+                                },
+                                {
+                                    "odd": "2.65",
+                                    "value": "Away"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 32,
+                            "name": "Win Both Halves",
+                            "values": [
+                                {
+                                    "odd": "3.35",
+                                    "value": "Home"
+                                },
+                                {
+                                    "odd": "19.00",
+                                    "value": "Away"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 16,
+                            "name": "Total - Home",
+                            "values": [
+                                {
+                                    "odd": "1.36",
+                                    "value": "Over 1.5"
+                                },
+                                {
+                                    "odd": "2.90",
+                                    "value": "Under 1.5"
+                                },
+                                {
+                                    "odd": "2.10",
+                                    "value": "Over 2.5"
+                                },
+                                {
+                                    "odd": "1.65",
+                                    "value": "Under 2.5"
+                                },
+                                {
+                                    "odd": "3.90",
+                                    "value": "Over 3.5"
+                                },
+                                {
+                                    "odd": "1.22",
+                                    "value": "Under 3.5"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 17,
+                            "name": "Total - Away",
+                            "values": [
+                                {
+                                    "odd": "2.55",
+                                    "value": "Over 1.5"
+                                },
+                                {
+                                    "odd": "1.45",
+                                    "value": "Under 1.5"
+                                },
+                                {
+                                    "odd": "6.00",
+                                    "value": "Over 2.5"
+                                },
+                                {
+                                    "odd": "1.09",
+                                    "value": "Under 2.5"
+                                },
+                                {
+                                    "odd": "1.33",
+                                    "value": "Over 0.5"
+                                },
+                                {
+                                    "odd": "3.10",
+                                    "value": "Under 0.5"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 18,
+                            "name": "Handicap Result - First Half",
+                            "values": [
+                                {
+                                    "odd": "4.00",
+                                    "value": "Home -1"
+                                },
+                                {
+                                    "odd": "1.83",
+                                    "value": "Away -1"
+                                },
+                                {
+                                    "odd": "3.10",
+                                    "value": "Draw -1"
+                                },
+                                {
+                                    "odd": "9.50",
+                                    "value": "Home -2"
+                                },
+                                {
+                                    "odd": "5.50",
+                                    "value": "Draw -2"
+                                },
+                                {
+                                    "odd": "1.20",
+                                    "value": "Away -2"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 19,
+                            "name": "Asian Handicap First Half",
+                            "values": [
+                                {
+                                    "odd": "1.93",
+                                    "value": "Home -0.5"
+                                },
+                                {
+                                    "odd": "1.85",
+                                    "value": "Away -0.5"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 20,
+                            "name": "Double Chance - First Half",
+                            "values": [
+                                {
+                                    "odd": "1.15",
+                                    "value": "Home/Draw"
+                                },
+                                {
+                                    "odd": "1.36",
+                                    "value": "Home/Away"
+                                },
+                                {
+                                    "odd": "1.83",
+                                    "value": "Draw/Away"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 34,
+                            "name": "Both Teams Score - First Half",
+                            "values": [
+                                {
+                                    "odd": "2.95",
+                                    "value": "Yes"
+                                },
+                                {
+                                    "odd": "1.35",
+                                    "value": "No"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 35,
+                            "name": "Both Teams To Score - Second Half",
+                            "values": [
+                                {
+                                    "odd": "2.38",
+                                    "value": "Yes"
+                                },
+                                {
+                                    "odd": "1.53",
+                                    "value": "No"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 36,
+                            "name": "Win To Nil",
+                            "values": [
+                                {
+                                    "odd": "3.35",
+                                    "value": "Home"
+                                },
+                                {
+                                    "odd": "12.00",
+                                    "value": "Away"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 21,
+                            "name": "Odd/Even",
+                            "values": [
+                                {
+                                    "odd": "1.85",
+                                    "value": "Odd"
+                                },
+                                {
+                                    "odd": "1.85",
+                                    "value": "Even"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 22,
+                            "name": "Odd/Even - First Half",
+                            "values": [
+                                {
+                                    "odd": "2.00",
+                                    "value": "Odd"
+                                },
+                                {
+                                    "odd": "1.80",
+                                    "value": "Even"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 23,
+                            "name": "Home Odd/Even",
+                            "values": [
+                                {
+                                    "odd": "1.85",
+                                    "value": "Odd"
+                                },
+                                {
+                                    "odd": "1.85",
+                                    "value": "Even"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 60,
+                            "name": "Away Odd/Even",
+                            "values": [
+                                {
+                                    "odd": "2.00",
+                                    "value": "Odd"
+                                },
+                                {
+                                    "odd": "1.73",
+                                    "value": "Even"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 39,
+                            "name": "To Win Either Half",
+                            "values": [
+                                {
+                                    "odd": "1.28",
+                                    "value": "Home"
+                                },
+                                {
+                                    "odd": "2.75",
+                                    "value": "Away"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 40,
+                            "name": "Home Team Exact Goals Number",
+                            "values": [
+                                {
+                                    "odd": "8.00",
+                                    "value": 0
+                                },
+                                {
+                                    "odd": "3.90",
+                                    "value": 1
+                                },
+                                {
+                                    "odd": "1.36",
+                                    "value": "more 2"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 41,
+                            "name": "Away Team Exact Goals Number",
+                            "values": [
+                                {
+                                    "odd": "3.10",
+                                    "value": 0
+                                },
+                                {
+                                    "odd": "2.45",
+                                    "value": 1
+                                },
+                                {
+                                    "odd": "2.55",
+                                    "value": "more 2"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 61,
+                            "name": "To Qualify",
+                            "values": [
+                                {
+                                    "odd": "1.35",
+                                    "value": "Home"
+                                },
+                                {
+                                    "odd": "2.85",
+                                    "value": "Away"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 24,
+                            "name": "Results/Both Teams Score",
+                            "values": [
+                                {
+                                    "odd": "2.40",
+                                    "value": "Home/Yes"
+                                },
+                                {
+                                    "odd": "5.00",
+                                    "value": "Draw/Yes"
+                                },
+                                {
+                                    "odd": "6.50",
+                                    "value": "Away/Yes"
+                                },
+                                {
+                                    "odd": "3.35",
+                                    "value": "Home/No"
+                                },
+                                {
+                                    "odd": "26.00",
+                                    "value": "Draw/No"
+                                },
+                                {
+                                    "odd": "12.00",
+                                    "value": "Away/No"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 25,
+                            "name": "Result/Total Goals",
+                            "values": [
+                                {
+                                    "odd": "5.00",
+                                    "value": "Draw/Over 1.5"
+                                },
+                                {
+                                    "odd": "5.50",
+                                    "value": "Away/Over 1.5"
+                                },
+                                {
+                                    "odd": "1.67",
+                                    "value": "Home/Over 1.5"
+                                },
+                                {
+                                    "odd": "10.00",
+                                    "value": "Home/Under 1.5"
+                                },
+                                {
+                                    "odd": "26.00",
+                                    "value": "Draw/Under 1.5"
+                                },
+                                {
+                                    "odd": "19.00",
+                                    "value": "Away/Under 1.5"
+                                },
+                                {
+                                    "odd": "1.90",
+                                    "value": "Home/Over 2.5"
+                                },
+                                {
+                                    "odd": "8.50",
+                                    "value": "Draw/Over 2.5"
+                                },
+                                {
+                                    "odd": "6.25",
+                                    "value": "Away/Over 2.5"
+                                },
+                                {
+                                    "odd": "5.75",
+                                    "value": "Home/Under 2.5"
+                                },
+                                {
+                                    "odd": "7.00",
+                                    "value": "Draw/Under 2.5"
+                                },
+                                {
+                                    "odd": "13.00",
+                                    "value": "Away/Under 2.5"
+                                },
+                                {
+                                    "odd": "8.50",
+                                    "value": "Draw/Over 3.5"
+                                },
+                                {
+                                    "odd": "2.65",
+                                    "value": "Home/Over 3.5"
+                                },
+                                {
+                                    "odd": "10.00",
+                                    "value": "Away/Over 3.5"
+                                },
+                                {
+                                    "odd": "3.00",
+                                    "value": "Home/Under 3.5"
+                                },
+                                {
+                                    "odd": "7.00",
+                                    "value": "Draw/Under 3.5"
+                                },
+                                {
+                                    "odd": "7.50",
+                                    "value": "Away/Under 3.5"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 54,
+                            "name": "First 10 min Winner",
+                            "values": [
+                                {
+                                    "odd": "5.00",
+                                    "value": "Home"
+                                },
+                                {
+                                    "odd": "1.28",
+                                    "value": "Draw"
+                                },
+                                {
+                                    "odd": "9.50",
+                                    "value": "Away"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 45,
+                            "name": "Corners Over Under",
+                            "values": [
+                                {
+                                    "odd": "1.70",
+                                    "value": "Over 9.5"
+                                },
+                                {
+                                    "odd": "2.05",
+                                    "value": "Under 9.5"
+                                },
+                                {
+                                    "odd": "2.05",
+                                    "value": "Over 10.5"
+                                },
+                                {
+                                    "odd": "1.70",
+                                    "value": "Under 10.5"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 105,
+                            "name": "Home Team Total Goals(1st Half)",
+                            "values": [
+                                {
+                                    "odd": "2.88",
+                                    "value": "Over 1.5"
+                                },
+                                {
+                                    "odd": "1.36",
+                                    "value": "Under 1.5"
+                                },
+                                {
+                                    "odd": "7.00",
+                                    "value": "Over 2.5"
+                                },
+                                {
+                                    "odd": "1.07",
+                                    "value": "Under 2.5"
+                                },
+                                {
+                                    "odd": "1.40",
+                                    "value": "Over 0.5"
+                                },
+                                {
+                                    "odd": "2.90",
+                                    "value": "Under 0.5"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 106,
+                            "name": "Away Team Total Goals(1st Half)",
+                            "values": [
+                                {
+                                    "odd": "7.00",
+                                    "value": "Over 1.5"
+                                },
+                                {
+                                    "odd": "1.07",
+                                    "value": "Under 1.5"
+                                },
+                                {
+                                    "odd": "2.10",
+                                    "value": "Over 0.5"
+                                },
+                                {
+                                    "odd": "1.70",
+                                    "value": "Under 0.5"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 107,
+                            "name": "Home Team Total Goals(2nd Half)",
+                            "values": [
+                                {
+                                    "odd": "2.38",
+                                    "value": "Over 1.5"
+                                },
+                                {
+                                    "odd": "1.53",
+                                    "value": "Under 1.5"
+                                },
+                                {
+                                    "odd": "5.50",
+                                    "value": "Over 2.5"
+                                },
+                                {
+                                    "odd": "1.11",
+                                    "value": "Under 2.5"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 108,
+                            "name": "Away Team Total Goals(2nd Half)",
+                            "values": [
+                                {
+                                    "odd": "5.00",
+                                    "value": "Over 1.5"
+                                },
+                                {
+                                    "odd": "1.13",
+                                    "value": "Under 1.5"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 63,
+                            "name": "Odd/Even - Second Half",
+                            "values": [
+                                {
+                                    "odd": "1.93",
+                                    "value": "Odd"
+                                },
+                                {
+                                    "odd": "1.85",
+                                    "value": "Even"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 109,
+                            "name": "Draw No Bet (1st Half)",
+                            "values": [
+                                {
+                                    "odd": "1.28",
+                                    "value": "Home"
+                                },
+                                {
+                                    "odd": "3.30",
+                                    "value": "Away"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 181,
+                            "name": "European Handicap (2nd Half)",
+                            "values": [
+                                {
+                                    "odd": "3.55",
+                                    "value": "Home -1"
+                                },
+                                {
+                                    "odd": "1.90",
+                                    "value": "Away -1"
+                                },
+                                {
+                                    "odd": "3.20",
+                                    "value": "Draw -1"
+                                },
+                                {
+                                    "odd": "8.00",
+                                    "value": "Home -2"
+                                },
+                                {
+                                    "odd": "5.25",
+                                    "value": "Draw -2"
+                                },
+                                {
+                                    "odd": "1.25",
+                                    "value": "Away -2"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 182,
+                            "name": "Draw No Bet (2nd Half)",
+                            "values": [
+                                {
+                                    "odd": "1.30",
+                                    "value": "Home"
+                                },
+                                {
+                                    "odd": "3.20",
+                                    "value": "Away"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 49,
+                            "name": "Total Goals/Both Teams To Score",
+                            "values": [
+                                {
+                                    "odd": "1.62",
+                                    "value": "o/yes 2.5"
+                                },
+                                {
+                                    "odd": "6.50",
+                                    "value": "o/no 2.5"
+                                },
+                                {
+                                    "odd": "8.50",
+                                    "value": "u/yes 2.5"
+                                },
+                                {
+                                    "odd": "4.00",
+                                    "value": "u/no 2.5"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 57,
+                            "name": "Home Corners Over/Under",
+                            "values": [
+                                {
+                                    "odd": "1.90",
+                                    "value": "Over 6.5"
+                                },
+                                {
+                                    "odd": "1.70",
+                                    "value": "Under 6.5"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 58,
+                            "name": "Away Corners Over/Under",
+                            "values": [
+                                {
+                                    "odd": "1.80",
+                                    "value": "Over 3.5"
+                                },
+                                {
+                                    "odd": "1.77",
+                                    "value": "Under 3.5"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 85,
+                            "name": "Total Corners (3 way)",
+                            "values": [
+                                {
+                                    "odd": "8.00",
+                                    "value": "Exactly 9"
+                                },
+                                {
+                                    "odd": "1.67",
+                                    "value": "Over 9"
+                                },
+                                {
+                                    "odd": "2.65",
+                                    "value": "Under 9"
+                                },
+                                {
+                                    "odd": "8.00",
+                                    "value": "Exactly 10"
+                                },
+                                {
+                                    "odd": "2.05",
+                                    "value": "Over 10"
+                                },
+                                {
+                                    "odd": "2.10",
+                                    "value": "Under 10"
+                                },
+                                {
+                                    "odd": "8.50",
+                                    "value": "Exactly 11"
+                                },
+                                {
+                                    "odd": "2.55",
+                                    "value": "Over 11"
+                                },
+                                {
+                                    "odd": "1.70",
+                                    "value": "Under 11"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 137,
+                            "name": "1x2 - 60 minutes",
+                            "values": [
+                                {
+                                    "odd": "1.73",
+                                    "value": "Home"
+                                },
+                                {
+                                    "odd": "3.35",
+                                    "value": "Draw"
+                                },
+                                {
+                                    "odd": "5.00",
+                                    "value": "Away"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 139,
+                            "name": "1x2 - 30 minutes",
+                            "values": [
+                                {
+                                    "odd": "2.40",
+                                    "value": "Home"
+                                },
+                                {
+                                    "odd": "2.05",
+                                    "value": "Draw"
+                                },
+                                {
+                                    "odd": "5.50",
+                                    "value": "Away"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 185,
+                            "name": "First Team to Score (3 way) 1st Half",
+                            "values": [
+                                {
+                                    "odd": "1.75",
+                                    "value": "Home"
+                                },
+                                {
+                                    "odd": "4.33",
+                                    "value": "Draw"
+                                },
+                                {
+                                    "odd": "3.35",
+                                    "value": "Away"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 77,
+                            "name": "Total Corners (1st Half)",
+                            "values": [
+                                {
+                                    "odd": "5.50",
+                                    "value": "Exactly 5"
+                                },
+                                {
+                                    "odd": "2.35",
+                                    "value": "Over 5"
+                                },
+                                {
+                                    "odd": "2.00",
+                                    "value": "Under 5"
+                                },
+                                {
+                                    "odd": "1.73",
+                                    "value": "Over 4.5"
+                                },
+                                {
+                                    "odd": "2.00",
+                                    "value": "Under 4.5"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 338,
+                            "name": "Corners. Odd/Even",
+                            "values": [
+                                {
+                                    "odd": "1.85",
+                                    "value": "Odd"
+                                },
+                                {
+                                    "odd": "1.85",
+                                    "value": "Even"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 78,
+                            "name": "RTG_H1",
+                            "values": [
+                                {
+                                    "odd": "5.75",
+                                    "value": "Draw/Over 1.5"
+                                },
+                                {
+                                    "odd": "9.00",
+                                    "value": "Away/Over 1.5"
+                                },
+                                {
+                                    "odd": "3.20",
+                                    "value": "Home/Over 1.5"
+                                },
+                                {
+                                    "odd": "4.20",
+                                    "value": "Home/Under 1.5"
+                                },
+                                {
+                                    "odd": "4.33",
+                                    "value": "Draw/Under 1.5"
+                                },
+                                {
+                                    "odd": "7.00",
+                                    "value": "Away/Under 1.5"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 80,
+                            "name": "Cards Over/Under",
+                            "values": [
+                                {
+                                    "odd": "1.62",
+                                    "value": "Over 4.5"
+                                },
+                                {
+                                    "odd": "2.15",
+                                    "value": "Under 4.5"
+                                },
+                                {
+                                    "odd": "2.15",
+                                    "value": "Over 5.5"
+                                },
+                                {
+                                    "odd": "1.62",
+                                    "value": "Under 5.5"
+                                }
+                            ]
+                        }
+                    ],
+                    "name": "10Bet"
+                }
+            ]
+        }
+    ],
+    "events": [],
+    "fixture": {
+        "score": {
+            "away": null,
+            "home": null
+        },
+        "status": "NS",
+        "away_team": "Atletico Madrid",
+        "home_team": "Barcelona",
+        "fixture_id": 1534907,
+        "match_datetime": "2026-04-08T19:00:00+00:00"
+    },
+    "away_form": [
+        {
+            "score": "2-1",
+            "result": "W",
+            "opponent": "Atletico Madrid"
+        },
+        {
+            "score": "2-3",
+            "result": "L",
+            "opponent": "Real Madrid"
+        },
+        {
+            "score": "2-3",
+            "result": "L",
+            "opponent": "Tottenham"
+        },
+        {
+            "score": "0-1",
+            "result": "L",
+            "opponent": "Atletico Madrid"
+        },
+        {
+            "score": "2-5",
+            "result": "L",
+            "opponent": "Atletico Madrid"
+        }
+    ],
+    "home_form": [
+        {
+            "score": "1-2",
+            "result": "L",
+            "opponent": "Barcelona"
+        },
+        {
+            "score": "1-0",
+            "result": "W",
+            "opponent": "Rayo Vallecano"
+        },
+        {
+            "score": "7-2",
+            "result": "W",
+            "opponent": "Newcastle"
+        },
+        {
+            "score": "5-2",
+            "result": "W",
+            "opponent": "Sevilla"
+        },
+        {
+            "score": "1-1",
+            "result": "D",
+            "opponent": "Barcelona"
+        }
+    ],
+    "standings": [
+        {
+            "league": {
+                "id": 2,
+                "flag": null,
+                "logo": "https://media.api-sports.io/football/leagues/2.png",
+                "name": "UEFA Champions League",
+                "season": 2025,
+                "country": "World",
+                "standings": [
+                    [
+                        {
+                            "all": {
+                                "win": 8,
+                                "draw": 0,
+                                "lose": 0,
+                                "goals": {
+                                    "for": 23,
+                                    "against": 4
+                                },
+                                "played": 8
+                            },
+                            "away": {
+                                "win": 4,
+                                "draw": 0,
+                                "lose": 0,
+                                "goals": {
+                                    "for": 11,
+                                    "against": 1
+                                },
+                                "played": 4
+                            },
+                            "form": "WWWWW",
+                            "home": {
+                                "win": 4,
+                                "draw": 0,
+                                "lose": 0,
+                                "goals": {
+                                    "for": 12,
+                                    "against": 3
+                                },
+                                "played": 4
+                            },
+                            "rank": 1,
+                            "team": {
+                                "id": 42,
+                                "logo": "https://media.api-sports.io/football/teams/42.png",
+                                "name": "Arsenal"
+                            },
+                            "group": "UEFA Champions League",
+                            "points": 24,
+                            "status": "same",
+                            "update": "2026-04-08T00:00:00+00:00",
+                            "goalsDiff": 19,
+                            "description": "Promotion - Champions League (Play Offs: 1/8-finals)"
+                        },
+                        {
+                            "all": {
+                                "win": 7,
+                                "draw": 0,
+                                "lose": 1,
+                                "goals": {
+                                    "for": 22,
+                                    "against": 8
+                                },
+                                "played": 8
+                            },
+                            "away": {
+                                "win": 3,
+                                "draw": 0,
+                                "lose": 1,
+                                "goals": {
+                                    "for": 10,
+                                    "against": 6
+                                },
+                                "played": 4
+                            },
+                            "form": "WWWLW",
+                            "home": {
+                                "win": 4,
+                                "draw": 0,
+                                "lose": 0,
+                                "goals": {
+                                    "for": 12,
+                                    "against": 2
+                                },
+                                "played": 4
+                            },
+                            "rank": 2,
+                            "team": {
+                                "id": 157,
+                                "logo": "https://media.api-sports.io/football/teams/157.png",
+                                "name": "Bayern München"
+                            },
+                            "group": "UEFA Champions League",
+                            "points": 21,
+                            "status": "same",
+                            "update": "2026-04-08T00:00:00+00:00",
+                            "goalsDiff": 14,
+                            "description": "Promotion - Champions League (Play Offs: 1/8-finals)"
+                        },
+                        {
+                            "all": {
+                                "win": 6,
+                                "draw": 0,
+                                "lose": 2,
+                                "goals": {
+                                    "for": 20,
+                                    "against": 8
+                                },
+                                "played": 8
+                            },
+                            "away": {
+                                "win": 3,
+                                "draw": 0,
+                                "lose": 1,
+                                "goals": {
+                                    "for": 9,
+                                    "against": 2
+                                },
+                                "played": 4
+                            },
+                            "form": "WWWLW",
+                            "home": {
+                                "win": 3,
+                                "draw": 0,
+                                "lose": 1,
+                                "goals": {
+                                    "for": 11,
+                                    "against": 6
+                                },
+                                "played": 4
+                            },
+                            "rank": 3,
+                            "team": {
+                                "id": 40,
+                                "logo": "https://media.api-sports.io/football/teams/40.png",
+                                "name": "Liverpool"
+                            },
+                            "group": "UEFA Champions League",
+                            "points": 18,
+                            "status": "same",
+                            "update": "2026-04-08T00:00:00+00:00",
+                            "goalsDiff": 12,
+                            "description": "Promotion - Champions League (Play Offs: 1/8-finals)"
+                        },
+                        {
+                            "all": {
+                                "win": 5,
+                                "draw": 2,
+                                "lose": 1,
+                                "goals": {
+                                    "for": 17,
+                                    "against": 7
+                                },
+                                "played": 8
+                            },
+                            "away": {
+                                "win": 1,
+                                "draw": 2,
+                                "lose": 1,
+                                "goals": {
+                                    "for": 7,
+                                    "against": 7
+                                },
+                                "played": 4
+                            },
+                            "form": "WWWLW",
+                            "home": {
+                                "win": 4,
+                                "draw": 0,
+                                "lose": 0,
+                                "goals": {
+                                    "for": 10,
+                                    "against": 0
+                                },
+                                "played": 4
+                            },
+                            "rank": 4,
+                            "team": {
+                                "id": 47,
+                                "logo": "https://media.api-sports.io/football/teams/47.png",
+                                "name": "Tottenham"
+                            },
+                            "group": "UEFA Champions League",
+                            "points": 17,
+                            "status": "same",
+                            "update": "2026-04-08T00:00:00+00:00",
+                            "goalsDiff": 10,
+                            "description": "Promotion - Champions League (Play Offs: 1/8-finals)"
+                        },
+                        {
+                            "all": {
+                                "win": 5,
+                                "draw": 1,
+                                "lose": 2,
+                                "goals": {
+                                    "for": 22,
+                                    "against": 14
+                                },
+                                "played": 8
+                            },
+                            "away": {
+                                "win": 2,
+                                "draw": 1,
+                                "lose": 1,
+                                "goals": {
+                                    "for": 9,
+                                    "against": 9
+                                },
+                                "played": 4
+                            },
+                            "form": "WWWLD",
+                            "home": {
+                                "win": 3,
+                                "draw": 0,
+                                "lose": 1,
+                                "goals": {
+                                    "for": 13,
+                                    "against": 5
+                                },
+                                "played": 4
+                            },
+                            "rank": 5,
+                            "team": {
+                                "id": 529,
+                                "logo": "https://media.api-sports.io/football/teams/529.png",
+                                "name": "Barcelona"
+                            },
+                            "group": "UEFA Champions League",
+                            "points": 16,
+                            "status": "same",
+                            "update": "2026-04-08T00:00:00+00:00",
+                            "goalsDiff": 8,
+                            "description": "Promotion - Champions League (Play Offs: 1/8-finals)"
+                        },
+                        {
+                            "all": {
+                                "win": 5,
+                                "draw": 1,
+                                "lose": 2,
+                                "goals": {
+                                    "for": 17,
+                                    "against": 10
+                                },
+                                "played": 8
+                            },
+                            "away": {
+                                "win": 1,
+                                "draw": 1,
+                                "lose": 2,
+                                "goals": {
+                                    "for": 7,
+                                    "against": 9
+                                },
+                                "played": 4
+                            },
+                            "form": "WWLWD",
+                            "home": {
+                                "win": 4,
+                                "draw": 0,
+                                "lose": 0,
+                                "goals": {
+                                    "for": 10,
+                                    "against": 1
+                                },
+                                "played": 4
+                            },
+                            "rank": 6,
+                            "team": {
+                                "id": 49,
+                                "logo": "https://media.api-sports.io/football/teams/49.png",
+                                "name": "Chelsea"
+                            },
+                            "group": "UEFA Champions League",
+                            "points": 16,
+                            "status": "same",
+                            "update": "2026-04-08T00:00:00+00:00",
+                            "goalsDiff": 7,
+                            "description": "Promotion - Champions League (Play Offs: 1/8-finals)"
+                        },
+                        {
+                            "all": {
+                                "win": 5,
+                                "draw": 1,
+                                "lose": 2,
+                                "goals": {
+                                    "for": 17,
+                                    "against": 11
+                                },
+                                "played": 8
+                            },
+                            "away": {
+                                "win": 1,
+                                "draw": 1,
+                                "lose": 2,
+                                "goals": {
+                                    "for": 6,
+                                    "against": 8
+                                },
+                                "played": 4
+                            },
+                            "form": "WWLWD",
+                            "home": {
+                                "win": 4,
+                                "draw": 0,
+                                "lose": 0,
+                                "goals": {
+                                    "for": 11,
+                                    "against": 3
+                                },
+                                "played": 4
+                            },
+                            "rank": 7,
+                            "team": {
+                                "id": 228,
+                                "logo": "https://media.api-sports.io/football/teams/228.png",
+                                "name": "Sporting CP"
+                            },
+                            "group": "UEFA Champions League",
+                            "points": 16,
+                            "status": "same",
+                            "update": "2026-04-08T00:00:00+00:00",
+                            "goalsDiff": 6,
+                            "description": "Promotion - Champions League (Play Offs: 1/8-finals)"
+                        },
+                        {
+                            "all": {
+                                "win": 5,
+                                "draw": 1,
+                                "lose": 2,
+                                "goals": {
+                                    "for": 15,
+                                    "against": 9
+                                },
+                                "played": 8
+                            },
+                            "away": {
+                                "win": 2,
+                                "draw": 1,
+                                "lose": 1,
+                                "goals": {
+                                    "for": 7,
+                                    "against": 6
+                                },
+                                "played": 4
+                            },
+                            "form": "WLWLW",
+                            "home": {
+                                "win": 3,
+                                "draw": 0,
+                                "lose": 1,
+                                "goals": {
+                                    "for": 8,
+                                    "against": 3
+                                },
+                                "played": 4
+                            },
+                            "rank": 8,
+                            "team": {
+                                "id": 50,
+                                "logo": "https://media.api-sports.io/football/teams/50.png",
+                                "name": "Manchester City"
+                            },
+                            "group": "UEFA Champions League",
+                            "points": 16,
+                            "status": "same",
+                            "update": "2026-04-08T00:00:00+00:00",
+                            "goalsDiff": 6,
+                            "description": "Promotion - Champions League (Play Offs: 1/8-finals)"
+                        },
+                        {
+                            "all": {
+                                "win": 5,
+                                "draw": 0,
+                                "lose": 3,
+                                "goals": {
+                                    "for": 21,
+                                    "against": 12
+                                },
+                                "played": 8
+                            },
+                            "away": {
+                                "win": 2,
+                                "draw": 0,
+                                "lose": 2,
+                                "goals": {
+                                    "for": 11,
+                                    "against": 8
+                                },
+                                "played": 4
+                            },
+                            "form": "LWLWL",
+                            "home": {
+                                "win": 3,
+                                "draw": 0,
+                                "lose": 1,
+                                "goals": {
+                                    "for": 10,
+                                    "against": 4
+                                },
+                                "played": 4
+                            },
+                            "rank": 9,
+                            "team": {
+                                "id": 541,
+                                "logo": "https://media.api-sports.io/football/teams/541.png",
+                                "name": "Real Madrid"
+                            },
+                            "group": "UEFA Champions League",
+                            "points": 15,
+                            "status": "same",
+                            "update": "2026-04-08T00:00:00+00:00",
+                            "goalsDiff": 9,
+                            "description": "Promotion - Champions League (Play Offs: 1/16-finals)"
+                        },
+                        {
+                            "all": {
+                                "win": 5,
+                                "draw": 0,
+                                "lose": 3,
+                                "goals": {
+                                    "for": 15,
+                                    "against": 7
+                                },
+                                "played": 8
+                            },
+                            "away": {
+                                "win": 3,
+                                "draw": 0,
+                                "lose": 1,
+                                "goals": {
+                                    "for": 9,
+                                    "against": 2
+                                },
+                                "played": 4
+                            },
+                            "form": "WLLLW",
+                            "home": {
+                                "win": 2,
+                                "draw": 0,
+                                "lose": 2,
+                                "goals": {
+                                    "for": 6,
+                                    "against": 5
+                                },
+                                "played": 4
+                            },
+                            "rank": 10,
+                            "team": {
+                                "id": 505,
+                                "logo": "https://media.api-sports.io/football/teams/505.png",
+                                "name": "Inter"
+                            },
+                            "group": "UEFA Champions League",
+                            "points": 15,
+                            "status": "same",
+                            "update": "2026-04-08T00:00:00+00:00",
+                            "goalsDiff": 8,
+                            "description": "Promotion - Champions League (Play Offs: 1/16-finals)"
+                        },
+                        {
+                            "all": {
+                                "win": 4,
+                                "draw": 2,
+                                "lose": 2,
+                                "goals": {
+                                    "for": 21,
+                                    "against": 11
+                                },
+                                "played": 8
+                            },
+                            "away": {
+                                "win": 2,
+                                "draw": 1,
+                                "lose": 1,
+                                "goals": {
+                                    "for": 10,
+                                    "against": 5
+                                },
+                                "played": 4
+                            },
+                            "form": "DLDWL",
+                            "home": {
+                                "win": 2,
+                                "draw": 1,
+                                "lose": 1,
+                                "goals": {
+                                    "for": 11,
+                                    "against": 6
+                                },
+                                "played": 4
+                            },
+                            "rank": 11,
+                            "team": {
+                                "id": 85,
+                                "logo": "https://media.api-sports.io/football/teams/85.png",
+                                "name": "Paris Saint Germain"
+                            },
+                            "group": "UEFA Champions League",
+                            "points": 14,
+                            "status": "same",
+                            "update": "2026-04-08T00:00:00+00:00",
+                            "goalsDiff": 10,
+                            "description": "Promotion - Champions League (Play Offs: 1/16-finals)"
+                        },
+                        {
+                            "all": {
+                                "win": 4,
+                                "draw": 2,
+                                "lose": 2,
+                                "goals": {
+                                    "for": 17,
+                                    "against": 7
+                                },
+                                "played": 8
+                            },
+                            "away": {
+                                "win": 1,
+                                "draw": 2,
+                                "lose": 1,
+                                "goals": {
+                                    "for": 8,
+                                    "against": 5
+                                },
+                                "played": 4
+                            },
+                            "form": "DWDLW",
+                            "home": {
+                                "win": 3,
+                                "draw": 0,
+                                "lose": 1,
+                                "goals": {
+                                    "for": 9,
+                                    "against": 2
+                                },
+                                "played": 4
+                            },
+                            "rank": 12,
+                            "team": {
+                                "id": 34,
+                                "logo": "https://media.api-sports.io/football/teams/34.png",
+                                "name": "Newcastle"
+                            },
+                            "group": "UEFA Champions League",
+                            "points": 14,
+                            "status": "same",
+                            "update": "2026-04-08T00:00:00+00:00",
+                            "goalsDiff": 10,
+                            "description": "Promotion - Champions League (Play Offs: 1/16-finals)"
+                        },
+                        {
+                            "all": {
+                                "win": 3,
+                                "draw": 4,
+                                "lose": 1,
+                                "goals": {
+                                    "for": 14,
+                                    "against": 10
+                                },
+                                "played": 8
+                            },
+                            "away": {
+                                "win": 1,
+                                "draw": 2,
+                                "lose": 1,
+                                "goals": {
+                                    "for": 5,
+                                    "against": 5
+                                },
+                                "played": 4
+                            },
+                            "form": "DWWWD",
+                            "home": {
+                                "win": 2,
+                                "draw": 2,
+                                "lose": 0,
+                                "goals": {
+                                    "for": 9,
+                                    "against": 5
+                                },
+                                "played": 4
+                            },
+                            "rank": 13,
+                            "team": {
+                                "id": 496,
+                                "logo": "https://media.api-sports.io/football/teams/496.png",
+                                "name": "Juventus"
+                            },
+                            "group": "UEFA Champions League",
+                            "points": 13,
+                            "status": "same",
+                            "update": "2026-04-08T00:00:00+00:00",
+                            "goalsDiff": 4,
+                            "description": "Promotion - Champions League (Play Offs: 1/16-finals)"
+                        },
+                        {
+                            "all": {
+                                "win": 4,
+                                "draw": 1,
+                                "lose": 3,
+                                "goals": {
+                                    "for": 17,
+                                    "against": 15
+                                },
+                                "played": 8
+                            },
+                            "away": {
+                                "win": 1,
+                                "draw": 1,
+                                "lose": 2,
+                                "goals": {
+                                    "for": 6,
+                                    "against": 10
+                                },
+                                "played": 4
+                            },
+                            "form": "LDWWW",
+                            "home": {
+                                "win": 3,
+                                "draw": 0,
+                                "lose": 1,
+                                "goals": {
+                                    "for": 11,
+                                    "against": 5
+                                },
+                                "played": 4
+                            },
+                            "rank": 14,
+                            "team": {
+                                "id": 530,
+                                "logo": "https://media.api-sports.io/football/teams/530.png",
+                                "name": "Atletico Madrid"
+                            },
+                            "group": "UEFA Champions League",
+                            "points": 13,
+                            "status": "same",
+                            "update": "2026-04-08T00:00:00+00:00",
+                            "goalsDiff": 2,
+                            "description": "Promotion - Champions League (Play Offs: 1/16-finals)"
+                        },
+                        {
+                            "all": {
+                                "win": 4,
+                                "draw": 1,
+                                "lose": 3,
+                                "goals": {
+                                    "for": 10,
+                                    "against": 10
+                                },
+                                "played": 8
+                            },
+                            "away": {
+                                "win": 2,
+                                "draw": 0,
+                                "lose": 2,
+                                "goals": {
+                                    "for": 4,
+                                    "against": 5
+                                },
+                                "played": 4
+                            },
+                            "form": "LLWWW",
+                            "home": {
+                                "win": 2,
+                                "draw": 1,
+                                "lose": 1,
+                                "goals": {
+                                    "for": 6,
+                                    "against": 5
+                                },
+                                "played": 4
+                            },
+                            "rank": 15,
+                            "team": {
+                                "id": 499,
+                                "logo": "https://media.api-sports.io/football/teams/499.png",
+                                "name": "Atalanta"
+                            },
+                            "group": "UEFA Champions League",
+                            "points": 13,
+                            "status": "same",
+                            "update": "2026-04-08T00:00:00+00:00",
+                            "goalsDiff": 0,
+                            "description": "Promotion - Champions League (Play Offs: 1/16-finals)"
+                        },
+                        {
+                            "all": {
+                                "win": 3,
+                                "draw": 3,
+                                "lose": 2,
+                                "goals": {
+                                    "for": 13,
+                                    "against": 14
+                                },
+                                "played": 8
+                            },
+                            "away": {
+                                "win": 2,
+                                "draw": 1,
+                                "lose": 1,
+                                "goals": {
+                                    "for": 5,
+                                    "against": 4
+                                },
+                                "played": 4
+                            },
+                            "form": "WLDWW",
+                            "home": {
+                                "win": 1,
+                                "draw": 2,
+                                "lose": 1,
+                                "goals": {
+                                    "for": 8,
+                                    "against": 10
+                                },
+                                "played": 4
+                            },
+                            "rank": 16,
+                            "team": {
+                                "id": 168,
+                                "logo": "https://media.api-sports.io/football/teams/168.png",
+                                "name": "Bayer Leverkusen"
+                            },
+                            "group": "UEFA Champions League",
+                            "points": 12,
+                            "status": "same",
+                            "update": "2026-04-08T00:00:00+00:00",
+                            "goalsDiff": -1,
+                            "description": "Promotion - Champions League (Play Offs: 1/16-finals)"
+                        },
+                        {
+                            "all": {
+                                "win": 3,
+                                "draw": 2,
+                                "lose": 3,
+                                "goals": {
+                                    "for": 19,
+                                    "against": 17
+                                },
+                                "played": 8
+                            },
+                            "away": {
+                                "win": 1,
+                                "draw": 1,
+                                "lose": 2,
+                                "goals": {
+                                    "for": 9,
+                                    "against": 12
+                                },
+                                "played": 4
+                            },
+                            "form": "LLDWL",
+                            "home": {
+                                "win": 2,
+                                "draw": 1,
+                                "lose": 1,
+                                "goals": {
+                                    "for": 10,
+                                    "against": 5
+                                },
+                                "played": 4
+                            },
+                            "rank": 17,
+                            "team": {
+                                "id": 165,
+                                "logo": "https://media.api-sports.io/football/teams/165.png",
+                                "name": "Borussia Dortmund"
+                            },
+                            "group": "UEFA Champions League",
+                            "points": 11,
+                            "status": "same",
+                            "update": "2026-04-08T00:00:00+00:00",
+                            "goalsDiff": 2,
+                            "description": "Promotion - Champions League (Play Offs: 1/16-finals)"
+                        },
+                        {
+                            "all": {
+                                "win": 3,
+                                "draw": 2,
+                                "lose": 3,
+                                "goals": {
+                                    "for": 10,
+                                    "against": 14
+                                },
+                                "played": 8
+                            },
+                            "away": {
+                                "win": 2,
+                                "draw": 0,
+                                "lose": 2,
+                                "goals": {
+                                    "for": 4,
+                                    "against": 9
+                                },
+                                "played": 4
+                            },
+                            "form": "WWWLD",
+                            "home": {
+                                "win": 1,
+                                "draw": 2,
+                                "lose": 1,
+                                "goals": {
+                                    "for": 6,
+                                    "against": 5
+                                },
+                                "played": 4
+                            },
+                            "rank": 18,
+                            "team": {
+                                "id": 553,
+                                "logo": "https://media.api-sports.io/football/teams/553.png",
+                                "name": "Olympiakos Piraeus"
+                            },
+                            "group": "UEFA Champions League",
+                            "points": 11,
+                            "status": "same",
+                            "update": "2026-04-08T00:00:00+00:00",
+                            "goalsDiff": -4,
+                            "description": "Promotion - Champions League (Play Offs: 1/16-finals)"
+                        },
+                        {
+                            "all": {
+                                "win": 3,
+                                "draw": 1,
+                                "lose": 4,
+                                "goals": {
+                                    "for": 15,
+                                    "against": 17
+                                },
+                                "played": 8
+                            },
+                            "away": {
+                                "win": 1,
+                                "draw": 0,
+                                "lose": 3,
+                                "goals": {
+                                    "for": 5,
+                                    "against": 10
+                                },
+                                "played": 4
+                            },
+                            "form": "WWLLD",
+                            "home": {
+                                "win": 2,
+                                "draw": 1,
+                                "lose": 1,
+                                "goals": {
+                                    "for": 10,
+                                    "against": 7
+                                },
+                                "played": 4
+                            },
+                            "rank": 19,
+                            "team": {
+                                "id": 569,
+                                "logo": "https://media.api-sports.io/football/teams/569.png",
+                                "name": "Club Brugge KV"
+                            },
+                            "group": "UEFA Champions League",
+                            "points": 10,
+                            "status": "same",
+                            "update": "2026-04-08T00:00:00+00:00",
+                            "goalsDiff": -2,
+                            "description": "Promotion - Champions League (Play Offs: 1/16-finals)"
+                        },
+                        {
+                            "all": {
+                                "win": 3,
+                                "draw": 1,
+                                "lose": 4,
+                                "goals": {
+                                    "for": 9,
+                                    "against": 11
+                                },
+                                "played": 8
+                            },
+                            "away": {
+                                "win": 1,
+                                "draw": 0,
+                                "lose": 3,
+                                "goals": {
+                                    "for": 4,
+                                    "against": 8
+                                },
+                                "played": 4
+                            },
+                            "form": "LDLLW",
+                            "home": {
+                                "win": 2,
+                                "draw": 1,
+                                "lose": 1,
+                                "goals": {
+                                    "for": 5,
+                                    "against": 3
+                                },
+                                "played": 4
+                            },
+                            "rank": 20,
+                            "team": {
+                                "id": 645,
+                                "logo": "https://media.api-sports.io/football/teams/645.png",
+                                "name": "Galatasaray"
+                            },
+                            "group": "UEFA Champions League",
+                            "points": 10,
+                            "status": "same",
+                            "update": "2026-04-08T00:00:00+00:00",
+                            "goalsDiff": -2,
+                            "description": "Promotion - Champions League (Play Offs: 1/16-finals)"
+                        },
+                        {
+                            "all": {
+                                "win": 2,
+                                "draw": 4,
+                                "lose": 2,
+                                "goals": {
+                                    "for": 8,
+                                    "against": 14
+                                },
+                                "played": 8
+                            },
+                            "away": {
+                                "win": 1,
+                                "draw": 1,
+                                "lose": 2,
+                                "goals": {
+                                    "for": 5,
+                                    "against": 12
+                                },
+                                "played": 4
+                            },
+                            "form": "DLWDW",
+                            "home": {
+                                "win": 1,
+                                "draw": 3,
+                                "lose": 0,
+                                "goals": {
+                                    "for": 3,
+                                    "against": 2
+                                },
+                                "played": 4
+                            },
+                            "rank": 21,
+                            "team": {
+                                "id": 91,
+                                "logo": "https://media.api-sports.io/football/teams/91.png",
+                                "name": "Monaco"
+                            },
+                            "group": "UEFA Champions League",
+                            "points": 10,
+                            "status": "same",
+                            "update": "2026-04-08T00:00:00+00:00",
+                            "goalsDiff": -6,
+                            "description": "Promotion - Champions League (Play Offs: 1/16-finals)"
+                        },
+                        {
+                            "all": {
+                                "win": 3,
+                                "draw": 1,
+                                "lose": 4,
+                                "goals": {
+                                    "for": 13,
+                                    "against": 21
+                                },
+                                "played": 8
+                            },
+                            "away": {
+                                "win": 1,
+                                "draw": 0,
+                                "lose": 3,
+                                "goals": {
+                                    "for": 4,
+                                    "against": 13
+                                },
+                                "played": 4
+                            },
+                            "form": "LWLLD",
+                            "home": {
+                                "win": 2,
+                                "draw": 1,
+                                "lose": 1,
+                                "goals": {
+                                    "for": 9,
+                                    "against": 8
+                                },
+                                "played": 4
+                            },
+                            "rank": 22,
+                            "team": {
+                                "id": 556,
+                                "logo": "https://media.api-sports.io/football/teams/556.png",
+                                "name": "Qarabag"
+                            },
+                            "group": "UEFA Champions League",
+                            "points": 10,
+                            "status": "same",
+                            "update": "2026-04-08T00:00:00+00:00",
+                            "goalsDiff": -8,
+                            "description": "Promotion - Champions League (Play Offs: 1/16-finals)"
+                        },
+                        {
+                            "all": {
+                                "win": 2,
+                                "draw": 3,
+                                "lose": 3,
+                                "goals": {
+                                    "for": 14,
+                                    "against": 15
+                                },
+                                "played": 8
+                            },
+                            "away": {
+                                "win": 1,
+                                "draw": 2,
+                                "lose": 1,
+                                "goals": {
+                                    "for": 7,
+                                    "against": 8
+                                },
+                                "played": 4
+                            },
+                            "form": "WWDLL",
+                            "home": {
+                                "win": 1,
+                                "draw": 1,
+                                "lose": 2,
+                                "goals": {
+                                    "for": 7,
+                                    "against": 7
+                                },
+                                "played": 4
+                            },
+                            "rank": 23,
+                            "team": {
+                                "id": 327,
+                                "logo": "https://media.api-sports.io/football/teams/327.png",
+                                "name": "Bodo/Glimt"
+                            },
+                            "group": "UEFA Champions League",
+                            "points": 9,
+                            "status": "same",
+                            "update": "2026-04-08T00:00:00+00:00",
+                            "goalsDiff": -1,
+                            "description": "Promotion - Champions League (Play Offs: 1/16-finals)"
+                        },
+                        {
+                            "all": {
+                                "win": 3,
+                                "draw": 0,
+                                "lose": 5,
+                                "goals": {
+                                    "for": 10,
+                                    "against": 12
+                                },
+                                "played": 8
+                            },
+                            "away": {
+                                "win": 1,
+                                "draw": 0,
+                                "lose": 3,
+                                "goals": {
+                                    "for": 2,
+                                    "against": 6
+                                },
+                                "played": 4
+                            },
+                            "form": "WLWWL",
+                            "home": {
+                                "win": 2,
+                                "draw": 0,
+                                "lose": 2,
+                                "goals": {
+                                    "for": 8,
+                                    "against": 6
+                                },
+                                "played": 4
+                            },
+                            "rank": 24,
+                            "team": {
+                                "id": 211,
+                                "logo": "https://media.api-sports.io/football/teams/211.png",
+                                "name": "Benfica"
+                            },
+                            "group": "UEFA Champions League",
+                            "points": 9,
+                            "status": "same",
+                            "update": "2026-04-08T00:00:00+00:00",
+                            "goalsDiff": -2,
+                            "description": "Promotion - Champions League (Play Offs: 1/16-finals)"
+                        },
+                        {
+                            "all": {
+                                "win": 3,
+                                "draw": 0,
+                                "lose": 5,
+                                "goals": {
+                                    "for": 11,
+                                    "against": 14
+                                },
+                                "played": 8
+                            },
+                            "away": {
+                                "win": 1,
+                                "draw": 0,
+                                "lose": 3,
+                                "goals": {
+                                    "for": 5,
+                                    "against": 9
+                                },
+                                "played": 4
+                            },
+                            "form": "LLWWL",
+                            "home": {
+                                "win": 2,
+                                "draw": 0,
+                                "lose": 2,
+                                "goals": {
+                                    "for": 6,
+                                    "against": 5
+                                },
+                                "played": 4
+                            },
+                            "rank": 25,
+                            "team": {
+                                "id": 81,
+                                "logo": "https://media.api-sports.io/football/teams/81.png",
+                                "name": "Marseille"
+                            },
+                            "group": "UEFA Champions League",
+                            "points": 9,
+                            "status": "same",
+                            "update": "2026-04-08T00:00:00+00:00",
+                            "goalsDiff": -3,
+                            "description": null
+                        },
+                        {
+                            "all": {
+                                "win": 2,
+                                "draw": 3,
+                                "lose": 3,
+                                "goals": {
+                                    "for": 8,
+                                    "against": 11
+                                },
+                                "played": 8
+                            },
+                            "away": {
+                                "win": 0,
+                                "draw": 2,
+                                "lose": 2,
+                                "goals": {
+                                    "for": 0,
+                                    "against": 3
+                                },
+                                "played": 4
+                            },
+                            "form": "WLLDW",
+                            "home": {
+                                "win": 2,
+                                "draw": 1,
+                                "lose": 1,
+                                "goals": {
+                                    "for": 8,
+                                    "against": 8
+                                },
+                                "played": 4
+                            },
+                            "rank": 26,
+                            "team": {
+                                "id": 3403,
+                                "logo": "https://media.api-sports.io/football/teams/3403.png",
+                                "name": "Pafos"
+                            },
+                            "group": "UEFA Champions League",
+                            "points": 9,
+                            "status": "same",
+                            "update": "2026-04-08T00:00:00+00:00",
+                            "goalsDiff": -3,
+                            "description": null
+                        },
+                        {
+                            "all": {
+                                "win": 3,
+                                "draw": 0,
+                                "lose": 5,
+                                "goals": {
+                                    "for": 8,
+                                    "against": 17
+                                },
+                                "played": 8
+                            },
+                            "away": {
+                                "win": 2,
+                                "draw": 0,
+                                "lose": 2,
+                                "goals": {
+                                    "for": 5,
+                                    "against": 6
+                                },
+                                "played": 4
+                            },
+                            "form": "WLLWL",
+                            "home": {
+                                "win": 1,
+                                "draw": 0,
+                                "lose": 3,
+                                "goals": {
+                                    "for": 3,
+                                    "against": 11
+                                },
+                                "played": 4
+                            },
+                            "rank": 27,
+                            "team": {
+                                "id": 1393,
+                                "logo": "https://media.api-sports.io/football/teams/1393.png",
+                                "name": "Union St. Gilloise"
+                            },
+                            "group": "UEFA Champions League",
+                            "points": 9,
+                            "status": "same",
+                            "update": "2026-04-08T00:00:00+00:00",
+                            "goalsDiff": -9,
+                            "description": null
+                        },
+                        {
+                            "all": {
+                                "win": 2,
+                                "draw": 2,
+                                "lose": 4,
+                                "goals": {
+                                    "for": 16,
+                                    "against": 16
+                                },
+                                "played": 8
+                            },
+                            "away": {
+                                "win": 1,
+                                "draw": 2,
+                                "lose": 1,
+                                "goals": {
+                                    "for": 6,
+                                    "against": 6
+                                },
+                                "played": 4
+                            },
+                            "form": "LLLWD",
+                            "home": {
+                                "win": 1,
+                                "draw": 0,
+                                "lose": 3,
+                                "goals": {
+                                    "for": 10,
+                                    "against": 10
+                                },
+                                "played": 4
+                            },
+                            "rank": 28,
+                            "team": {
+                                "id": 197,
+                                "logo": "https://media.api-sports.io/football/teams/197.png",
+                                "name": "PSV Eindhoven"
+                            },
+                            "group": "UEFA Champions League",
+                            "points": 8,
+                            "status": "same",
+                            "update": "2026-04-08T00:00:00+00:00",
+                            "goalsDiff": 0,
+                            "description": null
+                        },
+                        {
+                            "all": {
+                                "win": 2,
+                                "draw": 2,
+                                "lose": 4,
+                                "goals": {
+                                    "for": 9,
+                                    "against": 14
+                                },
+                                "played": 8
+                            },
+                            "away": {
+                                "win": 1,
+                                "draw": 1,
+                                "lose": 2,
+                                "goals": {
+                                    "for": 4,
+                                    "against": 8
+                                },
+                                "played": 4
+                            },
+                            "form": "LWDDL",
+                            "home": {
+                                "win": 1,
+                                "draw": 1,
+                                "lose": 2,
+                                "goals": {
+                                    "for": 5,
+                                    "against": 6
+                                },
+                                "played": 4
+                            },
+                            "rank": 29,
+                            "team": {
+                                "id": 531,
+                                "logo": "https://media.api-sports.io/football/teams/531.png",
+                                "name": "Athletic Club"
+                            },
+                            "group": "UEFA Champions League",
+                            "points": 8,
+                            "status": "same",
+                            "update": "2026-04-08T00:00:00+00:00",
+                            "goalsDiff": -5,
+                            "description": null
+                        },
+                        {
+                            "all": {
+                                "win": 2,
+                                "draw": 2,
+                                "lose": 4,
+                                "goals": {
+                                    "for": 9,
+                                    "against": 15
+                                },
+                                "played": 8
+                            },
+                            "away": {
+                                "win": 0,
+                                "draw": 1,
+                                "lose": 3,
+                                "goals": {
+                                    "for": 3,
+                                    "against": 11
+                                },
+                                "played": 4
+                            },
+                            "form": "LDLWD",
+                            "home": {
+                                "win": 2,
+                                "draw": 1,
+                                "lose": 1,
+                                "goals": {
+                                    "for": 6,
+                                    "against": 4
+                                },
+                                "played": 4
+                            },
+                            "rank": 30,
+                            "team": {
+                                "id": 492,
+                                "logo": "https://media.api-sports.io/football/teams/492.png",
+                                "name": "Napoli"
+                            },
+                            "group": "UEFA Champions League",
+                            "points": 8,
+                            "status": "same",
+                            "update": "2026-04-08T00:00:00+00:00",
+                            "goalsDiff": -6,
+                            "description": null
+                        },
+                        {
+                            "all": {
+                                "win": 2,
+                                "draw": 2,
+                                "lose": 4,
+                                "goals": {
+                                    "for": 12,
+                                    "against": 21
+                                },
+                                "played": 8
+                            },
+                            "away": {
+                                "win": 1,
+                                "draw": 0,
+                                "lose": 3,
+                                "goals": {
+                                    "for": 4,
+                                    "against": 12
+                                },
+                                "played": 4
+                            },
+                            "form": "LDWWL",
+                            "home": {
+                                "win": 1,
+                                "draw": 2,
+                                "lose": 1,
+                                "goals": {
+                                    "for": 8,
+                                    "against": 9
+                                },
+                                "played": 4
+                            },
+                            "rank": 31,
+                            "team": {
+                                "id": 400,
+                                "logo": "https://media.api-sports.io/football/teams/400.png",
+                                "name": "FC Copenhagen"
+                            },
+                            "group": "UEFA Champions League",
+                            "points": 8,
+                            "status": "same",
+                            "update": "2026-04-08T00:00:00+00:00",
+                            "goalsDiff": -9,
+                            "description": null
+                        },
+                        {
+                            "all": {
+                                "win": 2,
+                                "draw": 0,
+                                "lose": 6,
+                                "goals": {
+                                    "for": 8,
+                                    "against": 21
+                                },
+                                "played": 8
+                            },
+                            "away": {
+                                "win": 2,
+                                "draw": 0,
+                                "lose": 2,
+                                "goals": {
+                                    "for": 7,
+                                    "against": 12
+                                },
+                                "played": 4
+                            },
+                            "form": "LWWLL",
+                            "home": {
+                                "win": 0,
+                                "draw": 0,
+                                "lose": 4,
+                                "goals": {
+                                    "for": 1,
+                                    "against": 9
+                                },
+                                "played": 4
+                            },
+                            "rank": 32,
+                            "team": {
+                                "id": 194,
+                                "logo": "https://media.api-sports.io/football/teams/194.png",
+                                "name": "Ajax"
+                            },
+                            "group": "UEFA Champions League",
+                            "points": 6,
+                            "status": "same",
+                            "update": "2026-04-08T00:00:00+00:00",
+                            "goalsDiff": -13,
+                            "description": null
+                        },
+                        {
+                            "all": {
+                                "win": 1,
+                                "draw": 1,
+                                "lose": 6,
+                                "goals": {
+                                    "for": 10,
+                                    "against": 21
+                                },
+                                "played": 8
+                            },
+                            "away": {
+                                "win": 0,
+                                "draw": 1,
+                                "lose": 3,
+                                "goals": {
+                                    "for": 4,
+                                    "against": 10
+                                },
+                                "played": 4
+                            },
+                            "form": "LLLLD",
+                            "home": {
+                                "win": 1,
+                                "draw": 0,
+                                "lose": 3,
+                                "goals": {
+                                    "for": 6,
+                                    "against": 11
+                                },
+                                "played": 4
+                            },
+                            "rank": 33,
+                            "team": {
+                                "id": 169,
+                                "logo": "https://media.api-sports.io/football/teams/169.png",
+                                "name": "Eintracht Frankfurt"
+                            },
+                            "group": "UEFA Champions League",
+                            "points": 4,
+                            "status": "same",
+                            "update": "2026-04-08T00:00:00+00:00",
+                            "goalsDiff": -11,
+                            "description": null
+                        },
+                        {
+                            "all": {
+                                "win": 0,
+                                "draw": 3,
+                                "lose": 5,
+                                "goals": {
+                                    "for": 5,
+                                    "against": 19
+                                },
+                                "played": 8
+                            },
+                            "away": {
+                                "win": 0,
+                                "draw": 1,
+                                "lose": 3,
+                                "goals": {
+                                    "for": 1,
+                                    "against": 10
+                                },
+                                "played": 4
+                            },
+                            "form": "LLLDL",
+                            "home": {
+                                "win": 0,
+                                "draw": 2,
+                                "lose": 2,
+                                "goals": {
+                                    "for": 4,
+                                    "against": 9
+                                },
+                                "played": 4
+                            },
+                            "rank": 34,
+                            "team": {
+                                "id": 560,
+                                "logo": "https://media.api-sports.io/football/teams/560.png",
+                                "name": "Slavia Praha"
+                            },
+                            "group": "UEFA Champions League",
+                            "points": 3,
+                            "status": "same",
+                            "update": "2026-04-08T00:00:00+00:00",
+                            "goalsDiff": -14,
+                            "description": null
+                        },
+                        {
+                            "all": {
+                                "win": 0,
+                                "draw": 1,
+                                "lose": 7,
+                                "goals": {
+                                    "for": 5,
+                                    "against": 18
+                                },
+                                "played": 8
+                            },
+                            "away": {
+                                "win": 0,
+                                "draw": 0,
+                                "lose": 4,
+                                "goals": {
+                                    "for": 0,
+                                    "against": 9
+                                },
+                                "played": 4
+                            },
+                            "form": "LLLLL",
+                            "home": {
+                                "win": 0,
+                                "draw": 1,
+                                "lose": 3,
+                                "goals": {
+                                    "for": 5,
+                                    "against": 9
+                                },
+                                "played": 4
+                            },
+                            "rank": 35,
+                            "team": {
+                                "id": 533,
+                                "logo": "https://media.api-sports.io/football/teams/533.png",
+                                "name": "Villarreal"
+                            },
+                            "group": "UEFA Champions League",
+                            "points": 1,
+                            "status": "same",
+                            "update": "2026-04-08T00:00:00+00:00",
+                            "goalsDiff": -13,
+                            "description": null
+                        },
+                        {
+                            "all": {
+                                "win": 0,
+                                "draw": 1,
+                                "lose": 7,
+                                "goals": {
+                                    "for": 7,
+                                    "against": 22
+                                },
+                                "played": 8
+                            },
+                            "away": {
+                                "win": 0,
+                                "draw": 0,
+                                "lose": 4,
+                                "goals": {
+                                    "for": 6,
+                                    "against": 12
+                                },
+                                "played": 4
+                            },
+                            "form": "LLLLL",
+                            "home": {
+                                "win": 0,
+                                "draw": 1,
+                                "lose": 3,
+                                "goals": {
+                                    "for": 1,
+                                    "against": 10
+                                },
+                                "played": 4
+                            },
+                            "rank": 36,
+                            "team": {
+                                "id": 664,
+                                "logo": "https://media.api-sports.io/football/teams/664.png",
+                                "name": "Kairat Almaty"
+                            },
+                            "group": "UEFA Champions League",
+                            "points": 1,
+                            "status": "same",
+                            "update": "2026-04-08T00:00:00+00:00",
+                            "goalsDiff": -15,
+                            "description": null
+                        }
+                    ]
+                ]
+            }
+        }
+    ],
+    "statistics": null
+}

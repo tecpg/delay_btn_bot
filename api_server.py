@@ -306,30 +306,59 @@ async def get_fixture_details(fixture_id: int):
                 tasks.append(client.get(f"{BASE_URL}/odds?fixture={fixture_id}&bookmaker=1", headers=HEADERS))
             else:
                 tasks.append(None)
-
+            
             # stats (only if live)
             if status in ["1H", "2H", "LIVE", "HT"]:
                 tasks.append(client.get(f"{BASE_URL}/fixtures/statistics?fixture={fixture_id}", headers=HEADERS))
             else:
                 tasks.append(None)
+            
+              # 🔥 EVENTS (always useful)
+            tasks.append(client.get(f"{BASE_URL}/fixtures/events?fixture={fixture_id}", headers=HEADERS))
+
+            # 🔥 TEAM FORM (last 5 matches)
+            tasks.append(client.get(f"{BASE_URL}/fixtures?team={home_id}&last=5", headers=HEADERS))
+            tasks.append(client.get(f"{BASE_URL}/fixtures?team={away_id}&last=5", headers=HEADERS))
+
+
 
             responses = await asyncio.gather(*[t for t in tasks if t is not None], return_exceptions=True)
 
             idx = 0
 
             # ───────── LINEUPS ─────────
+         # ───────── LINEUPS ─────────
             if tasks[0]:
                 lineup_resp = responses[idx]; idx += 1
+
                 result["lineups"] = [
                     {
                         "team": t["team"]["name"],
                         "formation": t.get("formation"),
                         "coach": t.get("coach", {}).get("name"),
-                        "players": [p["player"]["name"] for p in t.get("startXI", [])]
+
+                        # ✅ STARTING XI
+                        "players": [
+                            {
+                                "name": p["player"]["name"],
+                                "number": p["player"].get("number"),
+                                "pos": p["player"].get("pos")
+                            }
+                            for p in t.get("startXI", [])
+                        ],
+
+                        # 🔥 SUBSTITUTES (NEW)
+                        "substitutes": [
+                            {
+                                "name": p["player"]["name"],
+                                "number": p["player"].get("number"),
+                                "pos": p["player"].get("pos")
+                            }
+                            for p in t.get("substitutes", [])
+                        ]
                     }
                     for t in lineup_resp.json().get("response", [])
                 ]
-
             # ───────── STANDINGS ─────────
             stand_resp = responses[idx]; idx += 1
             result["standings"] = stand_resp.json().get("response", [])
@@ -352,6 +381,47 @@ async def get_fixture_details(fixture_id: int):
             else:
                 result["statistics"] = None
 
+            # ───────── EVENTS ─────────
+            events_resp = responses[idx]; idx += 1
+
+            result["events"] = [
+                {
+                    "time": e["time"]["elapsed"],
+                    "team": e["team"]["name"],
+                    "type": e["type"],        # Goal, Card, subst
+                    "detail": e["detail"],    # Yellow Card, Substitution
+                    "player": e["player"]["name"] if e.get("player") else None,
+                    "assist": e["assist"]["name"] if e.get("assist") else None
+                }
+                for e in events_resp.json().get("response", [])
+            ]
+
+
+                        # ───────── HOME FORM ─────────
+            home_form_resp = responses[idx]; idx += 1
+
+            result["home_form"] = [
+                {
+                    "opponent": f["teams"]["away"]["name"],
+                    "result": f["goals"]["home"] > f["goals"]["away"]
+                        and "W" or (f["goals"]["home"] == f["goals"]["away"] and "D" or "L"),
+                    "score": f"{f['goals']['home']}-{f['goals']['away']}"
+                }
+                for f in home_form_resp.json().get("response", [])
+            ]
+
+            # ───────── AWAY FORM ─────────
+            away_form_resp = responses[idx]; idx += 1
+
+            result["away_form"] = [
+                {
+                    "opponent": f["teams"]["home"]["name"],
+                    "result": f["goals"]["away"] > f["goals"]["home"]
+                        and "W" or (f["goals"]["away"] == f["goals"]["home"] and "D" or "L"),
+                    "score": f"{f['goals']['away']}-{f['goals']['home']}"
+                }
+                for f in away_form_resp.json().get("response", [])
+            ]
             # ─────────────────────────────
             # 5. SAVE TO DATABASE
             # ─────────────────────────────

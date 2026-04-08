@@ -77,6 +77,73 @@ def get_ttl(match_date: date):
     
     
 
+def extract_form_data(fixtures_data, is_home=True):
+    """Extract form data with dates"""
+    form_list = []
+    
+    for f in fixtures_data[:5]:
+        home_goals = f.get("goals", {}).get("home") or 0
+        away_goals = f.get("goals", {}).get("away") or 0
+        
+        if is_home:
+            # For home team: result based on home goals vs away goals
+            if home_goals > away_goals:
+                result_str = "W"
+            elif home_goals == away_goals:
+                result_str = "D"
+            else:
+                result_str = "L"
+            
+            opponent = f.get("teams", {}).get("away", {}).get("name", "Unknown")
+            opponent_logo = f.get("teams", {}).get("away", {}).get("logo")
+            score_display = f"{home_goals}-{away_goals}"
+        else:
+            # For away team: result based on away goals vs home goals
+            if away_goals > home_goals:
+                result_str = "W"
+            elif away_goals == home_goals:
+                result_str = "D"
+            else:
+                result_str = "L"
+            
+            opponent = f.get("teams", {}).get("home", {}).get("name", "Unknown")
+            opponent_logo = f.get("teams", {}).get("home", {}).get("logo")
+            score_display = f"{away_goals}-{home_goals}"
+        
+        league_name = f.get("league", {}).get("name", "Unknown League")
+        
+        # Extract match date
+        match_date = f.get("fixture", {}).get("date")
+        formatted_date = None
+        formatted_datetime = None
+        
+        if match_date:
+            try:
+                dt = datetime.fromisoformat(match_date.replace('Z', '+00:00'))
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=ZoneInfo("UTC"))
+                formatted_date = dt.strftime("%Y-%m-%d")
+                formatted_datetime = dt.isoformat()
+            except:
+                formatted_date = match_date[:10] if len(match_date) >= 10 else match_date
+                formatted_datetime = match_date
+        
+        form_list.append({
+            "opponent": opponent,
+            "opponent_logo": opponent_logo,
+            "result": result_str,
+            "score": score_display,
+            "league": league_name,
+            "date": formatted_date,
+            "datetime": formatted_datetime,
+            "home_score": home_goals,
+            "away_score": away_goals
+        })
+    
+    return form_list
+
+
+
 class FixtureOut(BaseModel):
     fixture_id: int
     league: str
@@ -395,60 +462,17 @@ async def get_fixture_details(fixture_id: int):
                 }
                 for e in events_resp.json().get("response", [])
             ]
-          
-                      # ───────── HOME FORM ─────────
+
+            # ───────── HOME FORM ─────────
             home_form_resp = responses[idx]; idx += 1
             home_form_data = home_form_resp.json().get("response", []) if not isinstance(home_form_resp, Exception) else []
-
-            result["home_form"] = []
-            for f in home_form_data[:5]:
-                home_goals = f.get("goals", {}).get("home") or 0
-                away_goals = f.get("goals", {}).get("away") or 0
-
-                if home_goals > away_goals:
-                    result_str = "W"
-                elif home_goals == away_goals:
-                    result_str = "D"
-                else:
-                    result_str = "L"
-
-                league_name = f.get("league", {}).get("name", "Unknown League")
-
-                result["home_form"].append({
-                    "opponent": f.get("teams", {}).get("away", {}).get("name", "Unknown"),
-                    "opponent_logo": f.get("teams", {}).get("away", {}).get("logo"),
-                    "result": result_str,
-                    "score": f"{home_goals}-{away_goals}",
-                    "league": league_name                     # ← Added
-                })
+            result["home_form"] = extract_form_data(home_form_data, is_home=True)
 
             # ───────── AWAY FORM ─────────
             away_form_resp = responses[idx]; idx += 1
             away_form_data = away_form_resp.json().get("response", []) if not isinstance(away_form_resp, Exception) else []
-
-            result["away_form"] = []
-            for f in away_form_data[:5]:
-                home_goals = f.get("goals", {}).get("home") or 0
-                away_goals = f.get("goals", {}).get("away") or 0
-
-                if away_goals > home_goals:
-                    result_str = "W"
-                elif away_goals == home_goals:
-                    result_str = "D"
-                else:
-                    result_str = "L"
-
-                league_name = f.get("league", {}).get("name", "Unknown League")
-
-                result["away_form"].append({
-                    "opponent": f.get("teams", {}).get("home", {}).get("name", "Unknown"),
-                    "opponent_logo": f.get("teams", {}).get("home", {}).get("logo"),
-                    "result": result_str,
-                    "score": f"{away_goals}-{home_goals}",
-                    "league": league_name                     # ← Added
-                })
-          
-          # ─────────────────────────────
+            result["away_form"] = extract_form_data(away_form_data, is_home=False)
+                    # ─────────────────────────────
             # 5. SAVE TO DATABASE
             # ─────────────────────────────
             conn = get_db()
@@ -503,3 +527,6 @@ async def get_fixture_details(fixture_id: int):
 @app.get("/health")
 def health():
     return {"status": "ok", "time": datetime.utcnow().isoformat()}
+
+
+

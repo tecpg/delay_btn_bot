@@ -436,39 +436,45 @@ async def get_fixture_details(fixture_id: int):
             idx = 0
 
             # ───────── LINEUPS ─────────
-         # ───────── LINEUPS ─────────
+      
+            # ───────── LINEUPS ─────────
             if tasks[0]:
                 lineup_resp = responses[idx]; idx += 1
-
-                result["lineups"] = [
-                    {
-                        "team": t["team"]["name"],
-                        "formation": t.get("formation"),
-                        "coach": t.get("coach", {}).get("name"),
-
-                        # ✅ STARTING XI
-                        "players": [
-                            {
-                                "name": p["player"]["name"],
-                                "number": p["player"].get("number"),
-                                "pos": p["player"].get("pos")
-                            }
-                            for p in t.get("startXI", [])
-                        ],
-
-                        # 🔥 SUBSTITUTES (NEW)
-                        "substitutes": [
-                            {
-                                "name": p["player"]["name"],
-                                "number": p["player"].get("number"),
-                                "pos": p["player"].get("pos")
-                            }
-                            for p in t.get("substitutes", [])
-                        ]
+                
+                result["lineups"] = []
+                for t in lineup_resp.json().get("response", []):
+                    lineup_data = {
+                        "team": t.get("team", {}).get("name", ""),
+                        "team_id": t.get("team", {}).get("id"),
+                        "team_logo": t.get("team", {}).get("logo", ""),
+                        "formation": t.get("formation", ""),
+                        "coach": t.get("coach", {}).get("name", ""),
+                        "players": [],
+                        "substitutes": []
                     }
-                    for t in lineup_resp.json().get("response", [])
-                ]
-            # ───────── STANDINGS ─────────
+                    
+                    # STARTING XI
+                    for p in t.get("startXI", []):
+                        player = p.get("player", {})
+                        lineup_data["players"].append({
+                            "name": player.get("name", ""),
+                            "number": player.get("number"),
+                            "pos": player.get("pos", ""),
+                            "grid": player.get("grid")  # Position on pitch (e.g., "1:1")
+                        })
+                    
+                    # SUBSTITUTES
+                    for p in t.get("substitutes", []):
+                        player = p.get("player", {})
+                        lineup_data["substitutes"].append({
+                            "name": player.get("name", ""),
+                            "number": player.get("number"),
+                            "pos": player.get("pos", "")
+                        })
+                    
+                    result["lineups"].append(lineup_data) 
+                    
+             # ───────── STANDINGS ─────────
             stand_resp = responses[idx]; idx += 1
             result["standings"] = stand_resp.json().get("response", [])
 

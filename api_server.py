@@ -76,21 +76,17 @@ def get_ttl(match_date: date):
         return 86400     # 1 day
     
     
-
 def process_form_data(fixtures_data, current_team_name):
-    """Process form data for a specific team
-    fixtures_data: list of fixtures from API
-    current_team_name: name of the team we're showing form for (e.g., "Barcelona")
-    """
+    """Process form data for a specific team - returns complete match details"""
     form_results = []
     
     for match in fixtures_data[:5]:
         home_team = match.get("teams", {}).get("home", {}).get("name", "")
         away_team = match.get("teams", {}).get("away", {}).get("name", "")
+        home_team_logo = match.get("teams", {}).get("home", {}).get("logo", "")
+        away_team_logo = match.get("teams", {}).get("away", {}).get("logo", "")
         home_goals = match.get("goals", {}).get("home") or 0
         away_goals = match.get("goals", {}).get("away") or 0
-        home_logo = match.get("teams", {}).get("home", {}).get("logo", "")
-        away_logo = match.get("teams", {}).get("away", {}).get("logo", "")
         
         # Determine if current team is home or away in this fixture
         if home_team == current_team_name:
@@ -98,15 +94,17 @@ def process_form_data(fixtures_data, current_team_name):
             our_score = home_goals
             their_score = away_goals
             opponent = away_team
-            opponent_logo = away_logo
+            opponent_logo = away_team_logo
             location = "home"
+            was_home = True
         elif away_team == current_team_name:
             # Current team played AWAY
             our_score = away_goals
             their_score = home_goals
             opponent = home_team
-            opponent_logo = home_logo
+            opponent_logo = home_team_logo
             location = "away"
+            was_home = False
         else:
             # Current team not found in this fixture (skip)
             continue
@@ -121,6 +119,8 @@ def process_form_data(fixtures_data, current_team_name):
         
         score_display = f"{our_score}-{their_score}"
         league_name = match.get("league", {}).get("name", "Unknown League")
+        league_logo = match.get("league", {}).get("logo", "")
+        league_country = match.get("league", {}).get("country", "")
         
         # Extract match date
         match_date = match.get("fixture", {}).get("date")
@@ -134,25 +134,57 @@ def process_form_data(fixtures_data, current_team_name):
                     dt = dt.replace(tzinfo=ZoneInfo("UTC"))
                 formatted_date = dt.strftime("%Y-%m-%d")
                 formatted_datetime = dt.isoformat()
+                match_time = dt.strftime("%H:%M")
             except:
                 formatted_date = match_date[:10] if len(match_date) >= 10 else match_date
                 formatted_datetime = match_date
+                match_time = match_date[11:16] if len(match_date) >= 16 else None
+        
+        # Get fixture status
+        fixture_status = match.get("fixture", {}).get("status", {}).get("short", "")
+        elapsed = match.get("fixture", {}).get("status", {}).get("elapsed", None)
         
         form_results.append({
+            # Core match info
+            "fixture_id": match.get("fixture", {}).get("id"),
+            "match_datetime": formatted_datetime,
+            "date": formatted_date,
+            "match_time": match_time,
+            "status": fixture_status,
+            "elapsed": elapsed,
+            
+            # League info
+            "league": league_name,
+            "league_logo": league_logo,
+            "league_country": league_country,
+            
+            # Home team details
+            "home_team": home_team,
+            "home_logo": home_team_logo,
+            "home_score": home_goals,
+            
+            # Away team details
+            "away_team": away_team,
+            "away_logo": away_team_logo,
+            "away_score": away_goals,
+            
+            # Current team perspective
+            "current_team": current_team_name,
+            "current_team_score": our_score,
             "opponent": opponent,
             "opponent_logo": opponent_logo,
+            "opponent_score": their_score,
             "result": result,
             "score": score_display,
-            "league": league_name,
-            "date": formatted_date,
-            "datetime": formatted_datetime,
-            "home_score": home_goals,
-            "away_score": away_goals,
-            "location": location  # Optional: add location (home/away)
+            "location": location,  # "home" or "away"
+            "was_home": was_home,
+            
+            # Additional details
+            "round": match.get("league", {}).get("round", ""),
+            "season": match.get("league", {}).get("season", ""),
         })
     
     return form_results
-
 
 class FixtureOut(BaseModel):
     fixture_id: int
@@ -473,9 +505,7 @@ async def get_fixture_details(fixture_id: int):
                 for e in events_resp.json().get("response", [])
             ]
 
-            # ───────── HOME FORM ─────────
-         
-         # In your fixture details endpoint, after fetching form data:
+         # In your fixture details endpoint:
 
             # Get current team names
             home_team_name = fixture["teams"]["home"]["name"]  # "Barcelona"
@@ -489,9 +519,8 @@ async def get_fixture_details(fixture_id: int):
             # ───────── AWAY FORM (for Atletico Madrid) ─────────
             away_form_resp = responses[idx]; idx += 1
             away_form_data = away_form_resp.json().get("response", []) if not isinstance(away_form_resp, Exception) else []
-            result["away_form"] = process_form_data(away_form_data, away_team_name)         # ─────────────────────────────
-                        # 5. SAVE TO DATABASE
-            # ─────────────────────────────
+            result["away_form"] = process_form_data(away_form_data, away_team_name)             # 5. SAVE TO DATABASE
+                        # ─────────────────────────────
             conn = get_db()
             cursor = conn.cursor()
 

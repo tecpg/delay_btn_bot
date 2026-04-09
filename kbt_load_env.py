@@ -18,7 +18,6 @@ access_token_secret = os.environ['access_token_secret']
 onesignal_app_id =  os.environ['onesignal_app_id']
 onesignal_app_key =  os.environ['onesignal_app_key']
 
-
 client_id = os.environ['client_id']
 client_id_secret = os.environ['client_id_secret']
 

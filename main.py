@@ -148,6 +148,42 @@ scheduler.add_job(
     max_instances=1,      # 🔥 prevent overlapping jobs
     coalesce=True         # 🔥 skip missed runs
 )
+# main.py
+
+from pydantic import BaseModel
+from typing import Optional
+
+class DeviceRegistration(BaseModel):
+    onesignal_player_id: str
+    device_model: Optional[str] = None
+    app_version: Optional[str] = None
+
+notification_service = MatchNotificationService()
+
+@app.post("/device/register")
+async def register_device(registration: DeviceRegistration):
+    """Register device for notifications"""
+    await notification_service.register_device(
+        registration.onesignal_player_id,
+        {
+            'device_model': registration.device_model,
+            'app_version': registration.app_version
+        }
+    )
+    return {"status": "registered"}
+
+# Manual trigger endpoints (for testing)
+@app.post("/notifications/send-reminders")
+async def send_match_reminders():
+    """Manually trigger match reminders"""
+    await notification_service.send_bulk_reminders()
+    return {"status": "reminders_sent"}
+
+@app.post("/notifications/send-results")
+async def send_match_results():
+    """Manually trigger result notifications"""
+    await notification_service.send_bulk_results()
+    return {"status": "results_sent"}
 
 print("🚀 Worker started...")
 scheduler.start()

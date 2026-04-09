@@ -18,6 +18,8 @@ import httpx
 from zoneinfo import ZoneInfo
 from psycopg2.extras import RealDictCursor
 
+from notification_service import MatchNotificationService
+
 CACHE_TTL_SHORT = 30      # live
 CACHE_TTL_MEDIUM = 600    # upcoming
 CACHE_TTL_LONG = 86400 * 3  # finished
@@ -224,6 +226,67 @@ class FixtureOut(BaseModel):
 from datetime import date
 
 from zoneinfo import ZoneInfo
+
+# main.py - Add these endpoints
+
+from pydantic import BaseModel
+from typing import Optional
+
+class DeviceRegistration(BaseModel):
+    onesignal_player_id: str
+    device_model: Optional[str] = None
+    app_version: Optional[str] = None
+
+notification_service = MatchNotificationService()
+
+@app.post("/device/register")
+async def register_device(registration: DeviceRegistration):
+    """Register device for notifications"""
+    await notification_service.register_device(
+        registration.onesignal_player_id,
+        {
+            'device_model': registration.device_model,
+            'app_version': registration.app_version
+        }
+    )
+    return {"status": "registered", "message": "Device registered for notifications"}
+
+@app.get("/device/status")
+async def get_device_status(device_id: str):
+    """Check if device is registered"""
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        SELECT is_active, last_active 
+        FROM devices 
+        WHERE device_id = %s
+    """, (device_id,))
+    
+    result = cursor.fetchone()
+    cursor.close()
+    release_db(conn)
+    
+    if result:
+        return {"registered": True, "is_active": result[0], "last_active": result[1]}
+    return {"registered": False}
+
+# Manual trigger endpoints for testing
+@app.post("/notifications/test-reminder/{fixture_id}")
+async def test_reminder(fixture_id: int):
+    """Manually trigger a test reminder (for debugging)"""
+    conn = get_db()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+    
+    cursor.execute("SELECT * FROM pro_tips WHERE fixture_id = %s", (fixture_id,))
+    fixture = cursor.fetchone()
+    cursor.close()
+    release_db(conn)
+    
+    if fixture:
+        await notification_service.send_match_reminder(fixture)
+        return {"status": "test_reminder_sent", "fixture_id": fixture_id}
+    return {"error": "Fixture not found"}
 
 @app.get("/fixtures/{fixture_date}", response_model=List[FixtureOut])
 def get_fixtures(fixture_date: str):

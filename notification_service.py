@@ -1,12 +1,9 @@
-# notification_service.py - Add this new file
+# notification_service.py
 import httpx
 from datetime import datetime, timedelta
 from typing import List, Dict
-import asyncio
-from psycopg2.extras import RealDictCursor
-
-from api_server import get_db, release_db
-import kbt_load_env
+from db_utils import get_db, release_db
+import kbt_load_env  # Import from db_utils instead of api_server
 
 class MatchNotificationService:
     def __init__(self):
@@ -19,6 +16,7 @@ class MatchNotificationService:
         devices = await self.get_all_devices()
         
         if not devices:
+            print("No devices registered for notifications")
             return
         
         match_time = fixture['match_datetime']
@@ -61,6 +59,7 @@ class MatchNotificationService:
             )
             
             await self.log_reminder_sent(fixture['fixture_id'])
+            print(f"Reminder sent for fixture {fixture['fixture_id']}")
             return response.json()
     
     async def send_prediction_result(self, fixture: Dict):
@@ -68,6 +67,7 @@ class MatchNotificationService:
         devices = await self.get_all_devices()
         
         if not devices:
+            print("No devices registered for notifications")
             return
         
         home_team = fixture['home_team']
@@ -116,6 +116,7 @@ class MatchNotificationService:
             )
             
             await self.log_result_sent(fixture['fixture_id'])
+            print(f"Result notification sent for fixture {fixture['fixture_id']}")
             return response.json()
     
     async def get_all_devices(self) -> List[str]:
@@ -123,74 +124,82 @@ class MatchNotificationService:
         conn = get_db()
         cursor = conn.cursor()
         
-        cursor.execute("""
-            SELECT onesignal_player_id 
-            FROM devices 
-            WHERE is_active = TRUE
-        """)
-        
-        devices = [row[0] for row in cursor.fetchall()]
-        cursor.close()
-        release_db(conn)
-        
-        return devices
+        try:
+            cursor.execute("""
+                SELECT onesignal_player_id 
+                FROM devices 
+                WHERE is_active = TRUE
+            """)
+            
+            devices = [row[0] for row in cursor.fetchall()]
+            return devices
+        finally:
+            cursor.close()
+            release_db(conn)
     
     async def register_device(self, onesignal_player_id: str, device_info: Dict):
         """Register a device"""
         conn = get_db()
         cursor = conn.cursor()
         
-        cursor.execute("""
-            INSERT INTO devices (device_id, onesignal_player_id, device_model, app_version, last_active)
-            VALUES (%s, %s, %s, %s, NOW())
-            ON CONFLICT (device_id) 
-            DO UPDATE SET 
-                last_active = NOW(),
-                device_model = EXCLUDED.device_model,
-                app_version = EXCLUDED.app_version,
-                is_active = TRUE
-        """, (
-            onesignal_player_id,
-            onesignal_player_id,
-            device_info.get('device_model', 'Unknown'),
-            device_info.get('app_version', '1.0.0')
-        ))
-        
-        conn.commit()
-        cursor.close()
-        release_db(conn)
+        try:
+            cursor.execute("""
+                INSERT INTO devices (device_id, onesignal_player_id, device_model, app_version, last_active)
+                VALUES (%s, %s, %s, %s, NOW())
+                ON CONFLICT (device_id) 
+                DO UPDATE SET 
+                    last_active = NOW(),
+                    device_model = EXCLUDED.device_model,
+                    app_version = EXCLUDED.app_version,
+                    is_active = TRUE
+            """, (
+                onesignal_player_id,
+                onesignal_player_id,
+                device_info.get('device_model', 'Unknown'),
+                device_info.get('app_version', '1.0.0')
+            ))
+            
+            conn.commit()
+            print(f"Device registered: {onesignal_player_id}")
+        finally:
+            cursor.close()
+            release_db(conn)
     
     async def log_reminder_sent(self, fixture_id: int):
         """Log that reminder was sent for this fixture"""
         conn = get_db()
         cursor = conn.cursor()
         
-        cursor.execute("""
-            INSERT INTO notification_log (fixture_id, reminder_sent, reminder_sent_at)
-            VALUES (%s, TRUE, NOW())
-            ON CONFLICT (fixture_id)
-            DO UPDATE SET reminder_sent = TRUE, reminder_sent_at = NOW()
-        """, (fixture_id,))
-        
-        conn.commit()
-        cursor.close()
-        release_db(conn)
+        try:
+            cursor.execute("""
+                INSERT INTO notification_log (fixture_id, reminder_sent, reminder_sent_at)
+                VALUES (%s, TRUE, NOW())
+                ON CONFLICT (fixture_id)
+                DO UPDATE SET reminder_sent = TRUE, reminder_sent_at = NOW()
+            """, (fixture_id,))
+            
+            conn.commit()
+        finally:
+            cursor.close()
+            release_db(conn)
     
     async def log_result_sent(self, fixture_id: int):
         """Log that result notification was sent for this fixture"""
         conn = get_db()
         cursor = conn.cursor()
         
-        cursor.execute("""
-            INSERT INTO notification_log (fixture_id, result_notification_sent, result_notification_sent_at)
-            VALUES (%s, TRUE, NOW())
-            ON CONFLICT (fixture_id)
-            DO UPDATE SET result_notification_sent = TRUE, result_notification_sent_at = NOW()
-        """, (fixture_id,))
-        
-        conn.commit()
-        cursor.close()
-        release_db(conn)
+        try:
+            cursor.execute("""
+                INSERT INTO notification_log (fixture_id, result_notification_sent, result_notification_sent_at)
+                VALUES (%s, TRUE, NOW())
+                ON CONFLICT (fixture_id)
+                DO UPDATE SET result_notification_sent = TRUE, result_notification_sent_at = NOW()
+            """, (fixture_id,))
+            
+            conn.commit()
+        finally:
+            cursor.close()
+            release_db(conn)
     
     def is_prediction_correct(self, prediction: str, home_score: int, away_score: int) -> bool:
         """Check if prediction matches actual result"""

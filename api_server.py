@@ -35,6 +35,57 @@ redis_client = redis.from_url(kbt_load_env.redis_url, decode_responses=True)
 BASE_URL = "https://v3.football.api-sports.io"
 HEADERS = {"x-apisports-key": kbt_load_env.api_football_key}
 
+
+
+# Initialize notification service
+notification_service = MatchNotificationService()
+
+
+from datetime import date
+
+from zoneinfo import ZoneInfo
+
+# main.py - Add these endpoints
+
+from pydantic import BaseModel
+from typing import Optional
+
+class DeviceRegistration(BaseModel):
+    onesignal_player_id: str
+    device_model: Optional[str] = None
+    app_version: Optional[str] = None
+
+
+class FixtureOut(BaseModel):
+    fixture_id: int
+    league: str
+    league_logo: Optional[str] = None
+    league_country: Optional[str] = None
+
+    home_team: str
+    home_logo: Optional[str] = None
+
+    away_team: str
+    away_logo: Optional[str] = None
+
+    match_time: Optional[str]
+    date: str
+
+    # 🔥 NEW (optional but powerful)
+    match_datetime: Optional[str] = None
+
+    prediction: Optional[str] = None
+    odd: Optional[str] = None
+
+    home_score: Optional[int] = None
+    away_score: Optional[int] = None
+    status: Optional[str] = None
+    elapsed: Optional[str] = None
+    extra: Optional[str] = None
+
+    source: Optional[str] = None
+    last_updated: Optional[str] = None
+
 # ────────────────────────────────────────────────
 # DB POOL (🔥 PERFORMANCE BOOST)
 # ────────────────────────────────────────────────
@@ -198,56 +249,13 @@ def process_form_data(fixtures_data, current_team_name):
     
     return form_results
 
-class FixtureOut(BaseModel):
-    fixture_id: int
-    league: str
-    league_logo: Optional[str] = None
-    league_country: Optional[str] = None
-
-    home_team: str
-    home_logo: Optional[str] = None
-
-    away_team: str
-    away_logo: Optional[str] = None
-
-    match_time: Optional[str]
-    date: str
-
-    # 🔥 NEW (optional but powerful)
-    match_datetime: Optional[str] = None
-
-    prediction: Optional[str] = None
-    odd: Optional[str] = None
-
-    home_score: Optional[int] = None
-    away_score: Optional[int] = None
-    status: Optional[str] = None
-    elapsed: Optional[str] = None
-    extra: Optional[str] = None
-
-    source: Optional[str] = None
-    last_updated: Optional[str] = None
 
 
 # ────────────────────────────────────────────────
 # FIXTURES
 # ────────────────────────────────────────────────
 
-from datetime import date
 
-from zoneinfo import ZoneInfo
-
-# main.py - Add these endpoints
-
-from pydantic import BaseModel
-from typing import Optional
-
-class DeviceRegistration(BaseModel):
-    onesignal_player_id: str
-    device_model: Optional[str] = None
-    app_version: Optional[str] = None
-
-notification_service = MatchNotificationService()
 
 @app.post("/device/register")
 async def register_device(registration: DeviceRegistration):

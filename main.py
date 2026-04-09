@@ -40,84 +40,102 @@ def refresh_live_predictions():
         print("⏱ Scheduler UTC:", datetime.utcnow())
 
         cursor.execute("""
-            SELECT fixture_id, date
+            SELECT fixture_id, date, status
             FROM pro_tips
-            WHERE match_datetime BETWEEN
-                NOW() - INTERVAL '2 hours '
-                AND NOW() + INTERVAL '10 minutes'
+            WHERE match_datetime BETWEEN 
+                NOW() - INTERVAL '3 hours'      -- Catch recently finished matches
+                AND NOW() + INTERVAL '20 minutes'
             AND (
-                last_updated IS NULL
-                OR last_updated < NOW() - INTERVAL '5 minutes'
+                -- Live matches: update every 2 minutes
+                (status IN ('1H', 'HT', '2H', 'ET', 'P') 
+                 AND (last_updated IS NULL OR last_updated < NOW() - INTERVAL '2 minutes'))
+                OR
+                -- Finished matches: update every 10 minutes
+                (status = 'FT' 
+                 AND (last_updated IS NULL OR last_updated < NOW() - INTERVAL '10 minutes'))
+                OR
+                -- Not started but close to kickoff
+                (status = 'NS' 
+                 AND match_datetime BETWEEN NOW() - INTERVAL '30 minutes' 
+                 AND NOW() + INTERVAL '20 minutes')
             )
-            LIMIT 30
+            ORDER BY 
+                CASE 
+                    WHEN status IN ('1H', 'HT', '2H', 'ET', 'P') THEN 0
+                    WHEN status = 'FT' THEN 1
+                    ELSE 2
+                END,
+                match_datetime
+            LIMIT 40
         """)
 
         rows = cursor.fetchall()
 
         if not rows:
-            print("⚠️ No matches to update")
+            print("⚠️ No matches to update at this time")
             return
 
         print(f"🔥 Updating {len(rows)} matches")
 
         deleted_dates = set()
 
-        with httpx.Client(timeout=10) as client:
+        with httpx.Client(timeout=12) as client:
             for row in rows:
                 try:
                     fid = row["fixture_id"]
+                    current_status = row.get("status", "NS")
 
                     r = client.get(
                         f"{BASE_URL}/fixtures?id={fid}",
                         headers=HEADERS
                     )
-
                     data = r.json()
+
                     if not data.get("response"):
                         continue
 
-                    fixture = data["response"][0]
+                    f = data["response"][0]
+                    new_status = f["fixture"]["status"]["short"]
+                    home = f["goals"]["home"] or 0
+                    away = f["goals"]["away"] or 0
 
-                    home = fixture["goals"]["home"] or 0
-                    away = fixture["goals"]["away"] or 0
-                    status = fixture["fixture"]["status"]["short"]
+                    # Only update if something actually changed
+                    if (home != row.get("home_score") or 
+                        away != row.get("away_score") or 
+                        new_status != current_status):
 
-                    # ✅ update ONLY if changed
-                    cursor.execute("""
-                        UPDATE pro_tips
-                        SET home_score = %s,
-                            away_score = %s,
-                            status = %s,
-                            last_updated = NOW()
-                        WHERE fixture_id = %s
-                        AND (
-                            home_score IS DISTINCT FROM %s OR
-                            away_score IS DISTINCT FROM %s OR
-                            status IS DISTINCT FROM %s
-                        )
-                    """, (home, away, status, fid, home, away, status))
+                        cursor.execute("""
+                            UPDATE pro_tips
+                            SET home_score = %s,
+                                away_score = %s,
+                                status = %s,
+                                last_updated = NOW()
+                            WHERE fixture_id = %s
+                        """, (home, away, new_status, fid))
 
-                    print(f"🔄 {fid} → {home}-{away} ({status})")
+                        print(f"🔄 {fid} → {home}-{away} ({new_status})")
 
-                    # 🧹 clear cache once per date
+                    # Clear cache once per date
                     if row["date"] not in deleted_dates:
                         redis_client.delete(f"fixtures:{row['date']}")
                         deleted_dates.add(row["date"])
 
                 except Exception as e:
-                    print(f"❌ Error {fid}:", e)
+                    print(f"❌ Error updating {fid}:", e)
 
         conn.commit()
         print("✅ Scheduler commit complete")
 
     except Exception as e:
         print("🔥 Scheduler crash:", e)
-        conn.rollback()
+        if conn:
+            conn.rollback()
 
     finally:
-        cursor.close()
-        release_db(conn)
-
+        if cursor:
+            cursor.close()
+        if conn:
+            release_db(conn)
 # ─────────────────────────────
 # SCHEDULER
 # ─────────────────────────────

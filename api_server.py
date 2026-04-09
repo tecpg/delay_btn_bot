@@ -85,6 +85,7 @@ class FixtureOut(BaseModel):
 
     source: Optional[str] = None
     last_updated: Optional[str] = None
+    result_notification_sent: Optional[bool] = False
 
 # ────────────────────────────────────────────────
 # DB POOL (🔥 PERFORMANCE BOOST)

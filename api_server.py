@@ -77,7 +77,17 @@ def get_ttl(match_date: date):
     else:
         return 86400     # 1 day
     
-    
+
+
+def get_fixture_ttl(status: str):
+    if status in ["FT", "AET", "PEN"]:
+        return CACHE_TTL_LONG
+    elif status in ["1H", "2H", "LIVE", "HT"]:
+        return CACHE_TTL_SHORT
+    else:
+        return CACHE_TTL_MEDIUM
+
+
 def process_form_data(fixtures_data, current_team_name):
     """Process form data for a specific team - returns complete match details"""
     form_results = []
@@ -356,15 +366,6 @@ def get_fixtures(fixture_date: str):
 # FIXTURE DETAILS
 # ────────────────────────────────────────────────
 
-
-
-def get_fixture_ttl(status: str):
-    if status in ["FT", "AET", "PEN"]:
-        return CACHE_TTL_LONG
-    elif status in ["1H", "2H", "LIVE", "HT"]:
-        return CACHE_TTL_SHORT
-    else:
-        return CACHE_TTL_MEDIUM
 
 
 @app.get("/fixture-details/{fixture_id}")

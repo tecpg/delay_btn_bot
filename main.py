@@ -92,25 +92,37 @@ def refresh_live_predictions():
                     current_status = row.get("status", "NS")
                     old_home_score = row.get("home_score", 0)
                     old_away_score = row.get("away_score", 0)
+                    
+                    print(f"📊 Processing fixture {fid}: current_status={current_status}")
 
-                    r = client.get(
-                        f"{BASE_URL}/fixtures?id={fid}",
-                        headers=HEADERS
-                    )
+                    # Make API request
+                    url = f"{BASE_URL}/fixtures?id={fid}"
+                    print(f"   Calling API: {url}")
+                    
+                    r = client.get(url, headers=HEADERS)
+                    print(f"   API Response Status: {r.status_code}")
+                    
+                    if r.status_code != 200:
+                        print(f"   ❌ API returned {r.status_code}: {r.text[:200]}")
+                        continue
+                    
                     data = r.json()
 
                     if not data.get("response"):
+                        print(f"   ⚠️ No response data for fixture {fid}")
                         continue
 
                     f = data["response"][0]
                     new_status = f["fixture"]["status"]["short"]
                     home = f["goals"]["home"] or 0
                     away = f["goals"]["away"] or 0
+                    
+                    print(f"   New data: status={new_status}, score={home}-{away}")
 
                     # Check if match just finished (status changed to FT)
                     if current_status != 'FT' and new_status == 'FT':
                         matches_to_notify_result.append(row)
-                        print(f"🎯 Match finished: {row['home_team']} vs {row['away_team']}")
+                        print(f"   🎯 Match finished: {row['home_team']} vs {row['away_team']}")
 
                     # Check if match is starting soon (15-30 minutes before)
                     if new_status == 'NS':
@@ -119,6 +131,7 @@ def refresh_live_predictions():
                             match_time = datetime.fromisoformat(match_time)
                         
                         minutes_until = (match_time - datetime.now()).total_seconds() / 60
+                        print(f"   Minutes until match: {minutes_until:.1f}")
                         
                         # Send reminder if between 15-30 minutes before match
                         if 15 <= minutes_until <= 30:
@@ -130,7 +143,7 @@ def refresh_live_predictions():
                             
                             if not reminder_result or not reminder_result[0]:
                                 matches_to_notify_reminder.append(row)
-                                print(f"🔔 Match starting soon: {row['home_team']} vs {row['away_team']}")
+                                print(f"   🔔 Will send reminder for {row['home_team']} vs {row['away_team']}")
 
                     # Only update if something actually changed
                     if (home != old_home_score or 
@@ -146,15 +159,23 @@ def refresh_live_predictions():
                             WHERE fixture_id = %s
                         """, (home, away, new_status, fid))
 
-                        print(f"🔄 {fid} → {home}-{away} ({new_status})")
+                        print(f"   ✅ Updated {fid} → {home}-{away} ({new_status})")
+                    else:
+                        print(f"   ⏭️ No changes for fixture {fid}")
 
                     # Clear cache once per date
                     if row["date"] not in deleted_dates:
                         redis_client.delete(f"fixtures:{row['date']}")
                         deleted_dates.add(row["date"])
 
+                except httpx.HTTPStatusError as e:
+                    print(f"❌ HTTP Error for {fid}: {e.response.status_code} - {e.response.text[:200]}")
+                except httpx.RequestError as e:
+                    print(f"❌ Request Error for {fid}: {e}")
                 except Exception as e:
-                    print(f"❌ Error updating {fid}:", e)
+                    print(f"❌ Unexpected Error for {fid}: {type(e).__name__} - {str(e)}")
+                    import traceback
+                    traceback.print_exc()
 
         # Send notifications asynchronously
         if matches_to_notify_reminder:
@@ -164,8 +185,9 @@ def refresh_live_predictions():
                     loop.run_until_complete(
                         notification_service.send_match_reminder(match)
                     )
+                    print(f"   ✅ Reminder sent for {match['fixture_id']}")
                 except Exception as e:
-                    print(f"Error sending reminder for {match['fixture_id']}: {e}")
+                    print(f"   ❌ Error sending reminder for {match['fixture_id']}: {e}")
 
         if matches_to_notify_result:
             print(f"📱 Sending {len(matches_to_notify_result)} result notifications...")
@@ -181,14 +203,17 @@ def refresh_live_predictions():
                         WHERE fixture_id = %s
                     """, (match['fixture_id'],))
                     
+                    print(f"   ✅ Result sent for {match['fixture_id']}")
                 except Exception as e:
-                    print(f"Error sending result for {match['fixture_id']}: {e}")
+                    print(f"   ❌ Error sending result for {match['fixture_id']}: {e}")
 
         conn.commit()
         print("✅ Scheduler commit complete")
 
     except Exception as e:
         print("🔥 Scheduler crash:", e)
+        import traceback
+        traceback.print_exc()
         if conn:
             conn.rollback()
 
@@ -198,7 +223,6 @@ def refresh_live_predictions():
             cursor.close()
         if conn:
             release_db(conn)
-
 # ─────────────────────────────
 # SCHEDULER
 # ─────────────────────────────

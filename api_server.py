@@ -87,6 +87,15 @@ class FixtureOut(BaseModel):
     last_updated: Optional[str] = None
     result_notification_sent: Optional[bool] = False
 
+
+from pydantic import BaseModel
+from typing import Optional
+
+class NotificationPreference(BaseModel):
+    device_id: str
+    fixture_id: int
+    enabled: bool
+
 # ────────────────────────────────────────────────
 # DB POOL (🔥 PERFORMANCE BOOST)
 # ────────────────────────────────────────────────
@@ -252,6 +261,51 @@ def process_form_data(fixtures_data, current_team_name):
 
 
 
+@app.post("/notifications/enable-fixture")
+async def enable_fixture_notification(pref: NotificationPreference):
+    """Enable/disable notifications for a specific fixture per device"""
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    try:
+        if pref.enabled:
+            # Add to notification preferences
+            cursor.execute("""
+                INSERT INTO device_fixture_notifications (device_id, fixture_id, enabled, created_at)
+                VALUES (%s, %s, TRUE, NOW())
+                ON CONFLICT (device_id, fixture_id) 
+                DO UPDATE SET enabled = TRUE, updated_at = NOW()
+            """, (pref.device_id, pref.fixture_id))
+        else:
+            # Disable or remove
+            cursor.execute("""
+                UPDATE device_fixture_notifications 
+                SET enabled = FALSE, updated_at = NOW()
+                WHERE device_id = %s AND fixture_id = %s
+            """, (pref.device_id, pref.fixture_id))
+        
+        conn.commit()
+        return {"status": "success"}
+    finally:
+        cursor.close()
+        release_db(conn)
+
+@app.get("/notifications/fixture-status/{device_id}/{fixture_id}")
+async def get_fixture_notification_status(device_id: str, fixture_id: int):
+    """Get notification status for a fixture"""
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        SELECT enabled FROM device_fixture_notifications 
+        WHERE device_id = %s AND fixture_id = %s
+    """, (device_id, fixture_id))
+    
+    result = cursor.fetchone()
+    cursor.close()
+    release_db(conn)
+    
+    return {"enabled": result[0] if result else False}
 # ────────────────────────────────────────────────
 # FIXTURES
 # ────────────────────────────────────────────────

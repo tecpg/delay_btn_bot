@@ -5,6 +5,8 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 from psycopg2.extras import RealDictCursor
 from psycopg2.pool import SimpleConnectionPool
 import kbt_load_env
+import asyncio
+from notification_service import MatchNotificationService
 
 # ─────────────────────────────
 # INIT
@@ -29,18 +31,25 @@ def get_db():
 def release_db(conn):
     db_pool.putconn(conn)
 
+# Initialize notification service
+notification_service = MatchNotificationService()
+
 # ─────────────────────────────
 # JOB
 # ─────────────────────────────
 def refresh_live_predictions():
     conn = get_db()
     cursor = conn.cursor(cursor_factory=RealDictCursor)
+    
+    # For async notifications
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
 
     try:
         print("⏱ Scheduler UTC:", datetime.utcnow())
 
         cursor.execute("""
-            SELECT fixture_id, date, status
+            SELECT fixture_id, date, status, home_team, away_team, prediction, home_score, away_score, match_datetime
             FROM pro_tips
             WHERE match_datetime BETWEEN 
                 NOW() - INTERVAL '3 hours'      -- Catch recently finished matches
@@ -78,12 +87,16 @@ def refresh_live_predictions():
         print(f"🔥 Updating {len(rows)} matches")
 
         deleted_dates = set()
+        matches_to_notify_reminder = []
+        matches_to_notify_result = []
 
         with httpx.Client(timeout=12) as client:
             for row in rows:
                 try:
                     fid = row["fixture_id"]
                     current_status = row.get("status", "NS")
+                    old_home_score = row.get("home_score", 0)
+                    old_away_score = row.get("away_score", 0)
 
                     r = client.get(
                         f"{BASE_URL}/fixtures?id={fid}",
@@ -99,9 +112,32 @@ def refresh_live_predictions():
                     home = f["goals"]["home"] or 0
                     away = f["goals"]["away"] or 0
 
+                    # ───────── NOTIFICATIONS: Check if match just finished ─────────
+                    if current_status != 'FT' and new_status == 'FT':
+                        matches_to_notify_result.append(row)
+                        print(f"🎯 Match finished: {row['home_team']} vs {row['away_team']}")
+
+                    # ───────── NOTIFICATIONS: Check if match starting soon ─────────
+                    if new_status == 'NS':
+                        match_time = row['match_datetime']
+                        if isinstance(match_time, str):
+                            match_time = datetime.fromisoformat(match_time)
+                        
+                        minutes_until = (match_time - datetime.now()).total_seconds() / 60
+                        
+                        if 15 <= minutes_until <= 30:
+                            cursor.execute("""
+                                SELECT reminder_sent FROM notification_log WHERE fixture_id = %s
+                            """, (fid,))
+                            reminder_result = cursor.fetchone()
+                            
+                            if not reminder_result or not reminder_result[0]:
+                                matches_to_notify_reminder.append(row)
+                                print(f"🔔 Match starting soon: {row['home_team']} vs {row['away_team']}")
+
                     # Only update if something actually changed
-                    if (home != row.get("home_score") or 
-                        away != row.get("away_score") or 
+                    if (home != old_home_score or 
+                        away != old_away_score or 
                         new_status != current_status):
 
                         cursor.execute("""
@@ -123,6 +159,34 @@ def refresh_live_predictions():
                 except Exception as e:
                     print(f"❌ Error updating {fid}:", e)
 
+        # ───────── NOTIFICATIONS: Send reminders ─────────
+        if matches_to_notify_reminder:
+            print(f"📱 Sending {len(matches_to_notify_reminder)} match reminders...")
+            for match in matches_to_notify_reminder:
+                try:
+                    loop.run_until_complete(
+                        notification_service.send_match_reminder(match)
+                    )
+                except Exception as e:
+                    print(f"Error sending reminder for {match['fixture_id']}: {e}")
+
+        # ───────── NOTIFICATIONS: Send result notifications ─────────
+        if matches_to_notify_result:
+            print(f"📱 Sending {len(matches_to_notify_result)} result notifications...")
+            for match in matches_to_notify_result:
+                try:
+                    loop.run_until_complete(
+                        notification_service.send_prediction_result(match)
+                    )
+                    
+                    cursor.execute("""
+                        UPDATE pro_tips SET result_notification_sent = TRUE
+                        WHERE fixture_id = %s
+                    """, (match['fixture_id'],))
+                    
+                except Exception as e:
+                    print(f"Error sending result for {match['fixture_id']}: {e}")
+
         conn.commit()
         print("✅ Scheduler commit complete")
 
@@ -132,10 +196,12 @@ def refresh_live_predictions():
             conn.rollback()
 
     finally:
+        loop.close()
         if cursor:
             cursor.close()
         if conn:
             release_db(conn)
+
 # ─────────────────────────────
 # SCHEDULER
 # ─────────────────────────────

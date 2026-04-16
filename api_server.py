@@ -444,7 +444,7 @@ def get_secondary_fixtures(fixture_date: str):
             SELECT *
             FROM pro_tips
             WHERE date = %s
-            ORDER BY match_time DESC
+            ORDER BY id DESC
             LIMIT 3 OFFSET 4
         """, (fixture_date,))
 
@@ -484,6 +484,8 @@ def get_secondary_fixtures(fixture_date: str):
     finally:
         cursor.close()
         release_db(conn)
+
+
 # ────────────────────────────────────────────────
 # FIXTURE DETAILS
 # ────────────────────────────────────────────────

@@ -484,6 +484,8 @@ def get_secondary_fixtures(fixture_date: str):
     finally:
         cursor.close()
         release_db(conn)
+
+
 # ────────────────────────────────────────────────
 # FIXTURE DETAILS
 # ────────────────────────────────────────────────

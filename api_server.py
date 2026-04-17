@@ -446,7 +446,7 @@ def get_fixtures(fixture_date: str):
             FROM pro_tips
             WHERE date = %s
             ORDER BY id DESC
-            LIMIT 3 OFFSET 4
+            
         """, (fixture_date,))
 
         rows = cursor.fetchall()

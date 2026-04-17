@@ -377,12 +377,12 @@ def get_fixtures(fixture_date: str):
 
     try:
         cursor.execute("""
-            SELECT *
-            FROM pro_tips
-            WHERE date = %s
-            ORDER BY match_time DESC
-        """, (fixture_date,))
-
+                SELECT *
+                FROM pro_tips
+                WHERE date = %s
+                ORDER BY id DESC
+                LIMIT 3 OFFSET 4
+            """, (fixture_date,))
         rows = cursor.fetchall()
 
         result = []

@@ -700,6 +700,65 @@ async def get_fixture_details(fixture_id: int):
             raise HTTPException(500, f"Internal error: {str(exc)}")
         
 
+@app.get("/fixtures/premium/{fixture_date}", response_model=List[FixtureOut])
+def get_premium_fixtures(fixture_date: str):
+
+    if fixture_date == "today":
+        fixture_date = str(date.today())
+
+    cache_key = f"fixtures_secondary:{fixture_date}"
+    cached = get_cache(cache_key)
+    if cached:
+        return cached
+
+    conn = get_db()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+    try:
+        cursor.execute("""
+                SELECT *
+                FROM pro_tips
+                WHERE date = %s
+                ORDER BY id DESC
+                LIMIT 3 OFFSET 4
+            """, (fixture_date,))
+
+        rows = cursor.fetchall()
+
+        result = []
+
+        for r in rows:
+            row = dict(r)
+
+            # ✅ HANDLE match_datetime (UTC ONLY)
+            if row.get("match_datetime"):
+                dt = row["match_datetime"]
+
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=ZoneInfo("UTC"))
+
+                row["match_datetime"] = dt.isoformat()
+                row["match_time"] = dt.strftime("%H:%M")
+                row["date"] = dt.strftime("%Y-%m-%d")
+
+            else:
+                row["match_time"] = None
+                row["date"] = fixture_date
+
+            # ✅ serialize last_updated
+            if row.get("last_updated"):
+                row["last_updated"] = row["last_updated"].isoformat()
+
+            result.append(row)
+
+        ttl = get_ttl(date.fromisoformat(fixture_date))
+        set_cache(cache_key, result, ttl)
+
+        return result
+
+    finally:
+        cursor.close()
+        release_db(conn)
 
 
 # ────────────────────────────────────────────────

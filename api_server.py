@@ -700,9 +700,6 @@ async def get_fixture_details(fixture_id: int):
             raise HTTPException(500, f"Internal error: {str(exc)}")
         
 
-from fastapi import HTTPException
-from datetime import date, datetime
-from zoneinfo import ZoneInfo
 
 @app.get("/fixtures/premium/{fixture_date}", response_model=List[FixtureOut])
 def get_premium_fixtures(fixture_date: str):

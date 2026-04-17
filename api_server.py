@@ -361,6 +361,99 @@ async def test_reminder(fixture_id: int):
         return {"status": "test_reminder_sent", "fixture_id": fixture_id}
     return {"error": "Fixture not found"}
 
+
+
+@app.get("/fixtures/premium/{fixture_date}", response_model=List[FixtureOut])
+def get_premium_fixtures(fixture_date: str):
+
+    if fixture_date == "today":
+        fixture_date = str(date.today())
+
+    cache_key = f"fixtures_premium:{fixture_date}"  # ✅ separate cache
+    cached = get_cache(cache_key)
+    if cached:
+        return cached
+
+    conn = get_db()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+    try:
+        cursor.execute("""
+            SELECT *
+            FROM pro_tips
+            WHERE date = %s
+            ORDER BY id DESC
+            LIMIT 3 OFFSET 4
+        """, (fixture_date,))
+
+        rows = cursor.fetchall()
+        result = []
+
+        for r in rows:
+            row = dict(r)
+
+            dt = row.get("match_datetime")
+
+            # ✅ SAFE datetime
+            if isinstance(dt, datetime):
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=ZoneInfo("UTC"))
+
+                match_datetime = dt.isoformat()
+                match_time = dt.strftime("%H:%M")
+                formatted_date = dt.strftime("%Y-%m-%d")
+            else:
+                match_datetime = None
+                match_time = None
+                formatted_date = fixture_date
+
+            last_updated = row.get("last_updated")
+            if isinstance(last_updated, datetime):
+                last_updated = last_updated.isoformat()
+
+            # ✅ SAFE mapping (VERY IMPORTANT)
+            result.append({
+                "fixture_id": row.get("fixture_id"),
+                "league": row.get("league") or "",
+                "league_logo": row.get("league_logo"),
+                "league_country": row.get("league_country"),
+
+                "home_team": row.get("home_team") or "",
+                "home_logo": row.get("home_logo"),
+
+                "away_team": row.get("away_team") or "",
+                "away_logo": row.get("away_logo"),
+
+                "match_time": match_time,
+                "date": formatted_date,
+                "match_datetime": match_datetime,
+
+                "prediction": row.get("prediction"),
+                "odd": row.get("odd"),
+
+                "home_score": row.get("home_score"),
+                "away_score": row.get("away_score"),
+                "status": row.get("status"),
+                "elapsed": row.get("elapsed"),
+                "extra": row.get("extra"),
+
+                "source": row.get("source"),
+                "last_updated": last_updated,
+                "result_notification_sent": row.get("result_notification_sent", False),
+            })
+
+        ttl = get_ttl(date.fromisoformat(fixture_date))
+        set_cache(cache_key, result, ttl)
+
+        return result
+
+    finally:
+        cursor.close()
+        release_db(conn)
+
+
+
+
 @app.get("/fixtures/{fixture_date}", response_model=List[FixtureOut])
 def get_fixtures(fixture_date: str):
 

@@ -381,7 +381,7 @@ def get_premium_fixtures(fixture_date: str):
             SELECT *
             FROM pro_tips
             WHERE date = %s
-            ORDER BY date DESC
+            ORDER BY id DESC
             LIMIT 3 OFFSET 4
         """, (fixture_date,))
 

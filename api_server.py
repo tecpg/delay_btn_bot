@@ -727,38 +727,37 @@ def get_premium_fixtures(fixture_date: str):
 
         result = []
 
+       
         for r in rows:
             row = dict(r)
 
-            # ✅ HANDLE match_datetime (UTC ONLY)
-            if row.get("match_datetime"):
-                dt = row["match_datetime"]
+            dt = row.get("match_datetime")
 
+            # ✅ SAFE datetime handling
+            if isinstance(dt, datetime):
                 if dt.tzinfo is None:
                     dt = dt.replace(tzinfo=ZoneInfo("UTC"))
 
-                # 🔥 KEEP UTC ONLY (client will convert)
                 row["match_datetime"] = dt.isoformat()
-
-                # optional fallback display
                 row["match_time"] = dt.strftime("%H:%M")
                 row["date"] = dt.strftime("%Y-%m-%d")
-
             else:
                 row["match_time"] = None
                 row["date"] = fixture_date
 
-            # ✅ serialize last_updated
-            if row.get("last_updated"):
+            # ✅ SAFE last_updated
+            if isinstance(row.get("last_updated"), datetime):
                 row["last_updated"] = row["last_updated"].isoformat()
 
             result.append(row)
 
-        ttl = get_ttl(date.fromisoformat(fixture_date))
+        # ✅ SAFE TTL
+        try:
+            ttl = get_ttl(date.fromisoformat(fixture_date))
+        except Exception:
+            ttl = 60
 
-        # ✅ cache CORRECT data
         set_cache(cache_key, result, ttl)
-
         return result
 
     finally:

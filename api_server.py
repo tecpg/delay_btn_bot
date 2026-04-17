@@ -737,7 +737,10 @@ def get_premium_fixtures(fixture_date: str):
                 if dt.tzinfo is None:
                     dt = dt.replace(tzinfo=ZoneInfo("UTC"))
 
+                # 🔥 KEEP UTC ONLY (client will convert)
                 row["match_datetime"] = dt.isoformat()
+
+                # optional fallback display
                 row["match_time"] = dt.strftime("%H:%M")
                 row["date"] = dt.strftime("%Y-%m-%d")
 
@@ -752,6 +755,8 @@ def get_premium_fixtures(fixture_date: str):
             result.append(row)
 
         ttl = get_ttl(date.fromisoformat(fixture_date))
+
+        # ✅ cache CORRECT data
         set_cache(cache_key, result, ttl)
 
         return result

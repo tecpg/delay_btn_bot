@@ -381,7 +381,7 @@ def get_secondary_fixtures(fixture_date: str):
             SELECT *
             FROM pro_tips
             WHERE date = %s
-            ORDER BY match_time DESC
+            ORDER BY date DESC
             LIMIT 3 OFFSET 4
         """, (fixture_date,))
 

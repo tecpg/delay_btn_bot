@@ -422,6 +422,89 @@ def get_premium_fixtures(fixture_date: str):
         cursor.close()
         release_db(conn)
 
+@app.get("/fixtures/premium/history", response_model=List[FixtureOut])
+def get_premium_history():
+
+    cache_key = "fixtures_premium_history"
+    cached = get_cache(cache_key)
+    if cached:
+        return cached
+
+    conn = get_db()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+    try:
+        cursor.execute("""
+            SELECT *
+            FROM pro_tips
+            WHERE date < CURRENT_DATE
+              AND date >= CURRENT_DATE - INTERVAL '14 days'
+            ORDER BY date DESC, id DESC
+            LIMIT 3 OFFSET 4
+        """)
+
+        rows = cursor.fetchall()
+        result = []
+
+        for r in rows:
+            row = dict(r)
+
+            dt = row.get("match_datetime")
+
+            if isinstance(dt, datetime):
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=ZoneInfo("UTC"))
+
+                match_datetime = dt.isoformat()
+                match_time = dt.strftime("%H:%M")
+                formatted_date = dt.strftime("%Y-%m-%d")
+            else:
+                match_datetime = None
+                match_time = None
+                formatted_date = row.get("date")
+
+            last_updated = row.get("last_updated")
+            if isinstance(last_updated, datetime):
+                last_updated = last_updated.isoformat()
+
+            result.append({
+                "fixture_id": row.get("fixture_id"),
+                "league": row.get("league") or "",
+                "league_logo": row.get("league_logo"),
+                "league_country": row.get("league_country"),
+
+                "home_team": row.get("home_team") or "",
+                "home_logo": row.get("home_logo"),
+
+                "away_team": row.get("away_team") or "",
+                "away_logo": row.get("away_logo"),
+
+                "match_time": match_time,
+                "date": formatted_date,
+                "match_datetime": match_datetime,
+
+                "prediction": row.get("prediction"),
+                "odd": row.get("odd"),
+
+                "home_score": row.get("home_score"),
+                "away_score": row.get("away_score"),
+                "status": row.get("status"),
+                "elapsed": row.get("elapsed"),
+                "extra": row.get("extra"),
+
+                "source": row.get("source"),
+                "last_updated": last_updated,
+                "result_notification_sent": row.get("result_notification_sent", False),
+            })
+
+        # cache for longer since it's historical
+        set_cache(cache_key, result, 600)
+
+        return result
+
+    finally:
+        cursor.close()
+        release_db(conn)
 
 @app.get("/fixtures/{fixture_date}", response_model=List[FixtureOut])
 def get_fixtures(fixture_date: str):

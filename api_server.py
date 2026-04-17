@@ -435,12 +435,12 @@ def get_premium_history():
 
     try:
         cursor.execute("""
-            SELECT *
-            FROM pro_tips
-            WHERE date < CURRENT_DATE
-              AND date >= CURRENT_DATE - INTERVAL '14 days'
-            ORDER BY date DESC, id DESC
-            LIMIT 3 OFFSET 4
+          SELECT *
+FROM pro_tips
+WHERE date::date < CURRENT_DATE
+  AND date::date >= (CURRENT_DATE - INTERVAL '14 days')
+ORDER BY date::date DESC, id DESC
+LIMIT 3 OFFSET 4
         """)
 
         rows = cursor.fetchall()

@@ -429,14 +429,14 @@ def get_premium_fixtures(fixture_date: str):
         cursor.close()
         release_db(conn)
 
+
+from datetime import date, datetime
+from fastapi import HTTPException
+
+# ✅ MUST COME FIRST (STATIC ROUTE)
 @app.get("/fixtures/premium/history", response_model=List[FixtureOut])
 def get_premium_history(limit: int = 6, offset: int = 0):
-    """
-    Get recent premium prediction history.
-    - Shows past predictions (excluding today)
-    - Default: last 6 predictions
-    - Supports pagination via limit/offset
-    """
+
     cache_key = f"fixtures_premium_history:{limit}:{offset}"
     cached = get_cache(cache_key)
     if cached:
@@ -469,12 +469,11 @@ def get_premium_history(limit: int = 6, offset: int = 0):
                 result_notification_sent,
                 date
             FROM pro_tips
-            WHERE date IS NOT NULL 
-              AND date < CURRENT_DATE                    -- Only past matches
-              AND date >= CURRENT_DATE - INTERVAL '30 days'  -- Last 30 days (increased from 14)
-            ORDER BY date DESC, match_datetime DESC, id DESC
-            LIMIT %s 
-            OFFSET %s
+            WHERE date IS NOT NULL
+              AND date < CURRENT_DATE
+              AND date >= CURRENT_DATE - INTERVAL '30 days'
+            ORDER BY date DESC, id DESC
+            LIMIT %s OFFSET %s
         """, (limit, offset))
 
         rows = cursor.fetchall()
@@ -483,17 +482,17 @@ def get_premium_history(limit: int = 6, offset: int = 0):
         for r in rows:
             row = dict(r)
 
-            # Safe datetime processing
             dt = row.get("match_datetime")
+
             if isinstance(dt, datetime):
                 if dt.tzinfo is None:
                     dt = dt.replace(tzinfo=ZoneInfo("UTC"))
+
                 row["match_datetime"] = dt.isoformat()
                 row["match_time"] = dt.strftime("%H:%M")
                 row["date"] = dt.strftime("%Y-%m-%d")
             else:
                 row["match_time"] = None
-                row["date"] = row.get("date")
 
             if isinstance(row.get("last_updated"), datetime):
                 row["last_updated"] = row["last_updated"].isoformat()
@@ -504,21 +503,74 @@ def get_premium_history(limit: int = 6, offset: int = 0):
                 print(f"Validation error for fixture {row.get('fixture_id')}: {e}")
                 continue
 
-        # Cache for 10 minutes
         set_cache(cache_key, result, 600)
         return result
 
     except Exception as e:
-        print(f"ERROR in get_premium_history: {e}")
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail="Failed to fetch premium history") from e
+        print("🔥 ERROR:", str(e))
+        raise HTTPException(500, "Failed to fetch premium history")
 
     finally:
         cursor.close()
         release_db(conn)
 
 
+# ✅ MUST COME AFTER (DYNAMIC ROUTE)
+@app.get("/fixtures/premium/{fixture_date}", response_model=List[FixtureOut])
+def get_premium_fixtures(fixture_date: date):
+
+    if fixture_date == date.today():
+        fixture_date = date.today()
+
+    cache_key = f"fixtures_premium:{fixture_date}"
+    cached = get_cache(cache_key)
+    if cached:
+        return cached
+
+    conn = get_db()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+    try:
+        cursor.execute("""
+            SELECT *
+            FROM pro_tips
+            WHERE date = %s
+            ORDER BY id DESC
+            LIMIT 3 OFFSET 4
+        """, (fixture_date,))
+
+        rows = cursor.fetchall()
+        result = []
+
+        for r in rows:
+            row = dict(r)
+
+            if row.get("match_datetime"):
+                dt = row["match_datetime"]
+
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=ZoneInfo("UTC"))
+
+                row["match_datetime"] = dt.isoformat()
+                row["match_time"] = dt.strftime("%H:%M")
+                row["date"] = dt.strftime("%Y-%m-%d")
+            else:
+                row["match_time"] = None
+                row["date"] = str(fixture_date)
+
+            if row.get("last_updated"):
+                row["last_updated"] = row["last_updated"].isoformat()
+
+            result.append(row)
+
+        ttl = get_ttl(fixture_date)
+        set_cache(cache_key, result, ttl)
+
+        return result
+
+    finally:
+        cursor.close()
+        release_db(conn)
 
 @app.get("/fixtures/{fixture_date}", response_model=List[FixtureOut])
 def get_fixtures(fixture_date: str):

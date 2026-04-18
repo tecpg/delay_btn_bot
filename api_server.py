@@ -507,9 +507,17 @@ def get_premium_history():
         cursor.close()
         release_db(conn)
 
+from datetime import datetime
+from zoneinfo import ZoneInfo
+from fastapi import APIRouter, HTTPException
+from psycopg2.extras import RealDictCursor
+
 @app.get("/fixtures/premium/history", response_model=List[FixtureOut])
 def get_premium_history():
-
+    """
+    Get recent premium prediction history (last 14 days, excluding today).
+    Returns 3 predictions after skipping the first 4 (OFFSET 4).
+    """
     cache_key = "fixtures_premium_history"
     cached = get_cache(cache_key)
     if cached:
@@ -520,7 +528,7 @@ def get_premium_history():
 
     try:
         cursor.execute("""
-            SELECT
+            SELECT 
                 fixture_id,
                 league,
                 league_logo,
@@ -539,16 +547,18 @@ def get_premium_history():
                 extra,
                 source,
                 last_updated,
-                result_notification_sent
+                result_notification_sent,
+                date
             FROM pro_tips
             WHERE date IS NOT NULL
               AND fixture_id IS NOT NULL
               AND home_team IS NOT NULL
               AND away_team IS NOT NULL
-              AND CAST(date AS DATE) < CURRENT_DATE
-              AND CAST(date AS DATE) >= (CURRENT_DATE - INTERVAL '14 days')
-            ORDER BY CAST(date AS DATE) DESC, id DESC
-            LIMIT 3 OFFSET 4
+              AND date < CURRENT_DATE                    -- Past dates only
+              AND date >= CURRENT_DATE - INTERVAL '14 days'  -- Last 14 days
+            ORDER BY date DESC, id DESC
+            LIMIT 3 
+            OFFSET 4
         """)
 
         rows = cursor.fetchall()
@@ -557,40 +567,44 @@ def get_premium_history():
         for r in rows:
             row = dict(r)
 
+            # Safe datetime handling for match_datetime
             dt = row.get("match_datetime")
-
-            # ✅ SAFE datetime handling
             if isinstance(dt, datetime):
                 if dt.tzinfo is None:
                     dt = dt.replace(tzinfo=ZoneInfo("UTC"))
-
                 row["match_datetime"] = dt.isoformat()
                 row["match_time"] = dt.strftime("%H:%M")
                 row["date"] = dt.strftime("%Y-%m-%d")
             else:
                 row["match_time"] = None
-                row["date"] = None
+                row["date"] = row.get("date")  # fallback to date column
 
-            # ✅ SAFE last_updated
+            # Safe last_updated
             if isinstance(row.get("last_updated"), datetime):
                 row["last_updated"] = row["last_updated"].isoformat()
 
-            # ✅ Explicit model validation (best practice)
-            result.append(FixtureOut(**row))
+            # Convert to Pydantic model (recommended)
+            try:
+                result.append(FixtureOut(**row))
+            except Exception as model_error:
+                print(f"Model validation error for row: {model_error}")
+                continue  # skip bad rows instead of crashing
 
+        # Cache for 10 minutes (600 seconds)
         set_cache(cache_key, result, 600)
 
         return result
 
     except Exception as e:
-        print("🔥 ERROR:", str(e))
-        raise HTTPException(500, "Internal Server Error")
+        print(f"🔥 ERROR in get_premium_history: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail="Failed to fetch premium history"
+        ) from e
 
     finally:
         cursor.close()
         release_db(conn)
-
-
 
 
 

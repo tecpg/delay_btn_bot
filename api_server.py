@@ -376,11 +376,10 @@ async def test_reminder(fixture_id: int):
 from datetime import date, datetime
 from fastapi import HTTPException
 
-# ✅ MUST COME FIRST (STATIC ROUTE)
 @app.get("/fixtures/premium-history", response_model=List[FixtureOut])
 def get_premium_history(limit: int = 6, offset: int = 0):
 
-    cache_key = f"fixtures_premium_history:{limit}:{offset}"
+    cache_key = f"fixtures_premium_history_v2:{limit}:{offset}"  # versioned
     cached = get_cache(cache_key)
     if cached:
         return cached
@@ -390,33 +389,33 @@ def get_premium_history(limit: int = 6, offset: int = 0):
 
     try:
         cursor.execute("""
-     SELECT 
-    fixture_id,
-    league,
-    league_logo,
-    league_country,
-    home_team,
-    home_logo,
-    away_team,
-    away_logo,
-    match_datetime,
-    prediction,
-    odd,
-    home_score,
-    away_score,
-    status,
-    elapsed,
-    extra,
-    source,
-    last_updated,
-    result_notification_sent,
-    date
-FROM pro_tips
-WHERE date IS NOT NULL
-  AND date < CURRENT_DATE
-  AND date >= CURRENT_DATE - INTERVAL '30 days'
-ORDER BY date DESC, fixture_id DESC
-LIMIT %s OFFSET %s
+            SELECT 
+                fixture_id,
+                league,
+                league_logo,
+                league_country,
+                home_team,
+                home_logo,
+                away_team,
+                away_logo,
+                match_datetime,
+                prediction,
+                odd,
+                home_score,
+                away_score,
+                status,
+                elapsed,
+                extra,
+                source,
+                last_updated,
+                result_notification_sent,
+                date
+            FROM pro_tips
+            WHERE date IS NOT NULL
+              AND CAST(date AS DATE) < CURRENT_DATE
+              AND CAST(date AS DATE) >= CURRENT_DATE - INTERVAL '30 days'
+            ORDER BY CAST(date AS DATE) DESC, fixture_id DESC
+            LIMIT %s OFFSET %s
         """, (limit, offset))
 
         rows = cursor.fetchall()
@@ -427,6 +426,9 @@ LIMIT %s OFFSET %s
 
             dt = row.get("match_datetime")
 
+            # ✅ ALWAYS set safe defaults
+            row["match_time"] = None
+
             if isinstance(dt, datetime):
                 if dt.tzinfo is None:
                     dt = dt.replace(tzinfo=ZoneInfo("UTC"))
@@ -434,9 +436,8 @@ LIMIT %s OFFSET %s
                 row["match_datetime"] = dt.isoformat()
                 row["match_time"] = dt.strftime("%H:%M")
                 row["date"] = dt.strftime("%Y-%m-%d")
-            else:
-                row["match_time"] = None
 
+            # ✅ last_updated safe
             if isinstance(row.get("last_updated"), datetime):
                 row["last_updated"] = row["last_updated"].isoformat()
 
@@ -457,6 +458,7 @@ LIMIT %s OFFSET %s
         cursor.close()
         release_db(conn)
 
+        
 
 # ✅ MUST COME AFTER (DYNAMIC ROUTE)
 @app.get("/fixtures/premium/{fixture_date}", response_model=List[FixtureOut])

@@ -377,7 +377,7 @@ from datetime import date, datetime
 from fastapi import HTTPException
 
 # ✅ MUST COME FIRST (STATIC ROUTE)
-@app.get("/fixtures/premium/history", response_model=List[FixtureOut])
+@app.get("/fixtures/premium-history", response_model=List[FixtureOut])
 def get_premium_history(limit: int = 6, offset: int = 0):
 
     cache_key = f"fixtures_premium_history:{limit}:{offset}"

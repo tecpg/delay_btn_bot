@@ -386,33 +386,33 @@ def get_premium_history(limit: int = 6, offset: int = 0):
 
     try:
         cursor.execute("""
-            SELECT 
-                fixture_id,
-                league,
-                league_logo,
-                league_country,
-                home_team,
-                home_logo,
-                away_team,
-                away_logo,
-                match_datetime,
-                prediction,
-                odd,
-                home_score,
-                away_score,
-                status,
-                elapsed,
-                extra,
-                source,
-                last_updated,
-                result_notification_sent,
-                date
-            FROM pro_tips
-            WHERE date IS NOT NULL
-              AND date < CURRENT_DATE
-              AND date >= CURRENT_DATE - INTERVAL '30 days'
-            ORDER BY date DESC, id DESC
-            LIMIT %s OFFSET %s
+     SELECT 
+    fixture_id,
+    league,
+    league_logo,
+    league_country,
+    home_team,
+    home_logo,
+    away_team,
+    away_logo,
+    match_datetime,
+    prediction,
+    odd,
+    home_score,
+    away_score,
+    status,
+    elapsed,
+    extra,
+    source,
+    last_updated,
+    result_notification_sent,
+    date
+FROM pro_tips
+WHERE date IS NOT NULL
+  AND date < CURRENT_DATE
+  AND date >= CURRENT_DATE - INTERVAL '30 days'
+ORDER BY date DESC, fixture_id DESC
+LIMIT %s OFFSET %s
         """, (limit, offset))
 
         rows = cursor.fetchall()

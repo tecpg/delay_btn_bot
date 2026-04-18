@@ -517,6 +517,9 @@ def get_premium_history(limit: int = 6, offset: int = 0):
     finally:
         cursor.close()
         release_db(conn)
+
+
+
 @app.get("/fixtures/{fixture_date}", response_model=List[FixtureOut])
 def get_fixtures(fixture_date: str):
 

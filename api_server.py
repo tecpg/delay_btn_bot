@@ -430,8 +430,14 @@ def get_premium_fixtures(fixture_date: str):
         release_db(conn)
 
 @app.get("/fixtures/premium/history", response_model=List[FixtureOut])
-def get_premium_history():
-    cache_key = "fixtures_premium_history"
+def get_premium_history(limit: int = 6, offset: int = 0):
+    """
+    Get recent premium prediction history.
+    - Shows past predictions (excluding today)
+    - Default: last 6 predictions
+    - Supports pagination via limit/offset
+    """
+    cache_key = f"fixtures_premium_history:{limit}:{offset}"
     cached = get_cache(cache_key)
     if cached:
         return cached
@@ -442,21 +448,34 @@ def get_premium_history():
     try:
         cursor.execute("""
             SELECT 
-                fixture_id, league, league_logo, league_country,
-                home_team, home_logo, away_team, away_logo,
-                match_datetime, prediction, odd,
-                home_score, away_score, status, elapsed, extra,
-                source, last_updated, result_notification_sent, date
+                fixture_id,
+                league,
+                league_logo,
+                league_country,
+                home_team,
+                home_logo,
+                away_team,
+                away_logo,
+                match_datetime,
+                prediction,
+                odd,
+                home_score,
+                away_score,
+                status,
+                elapsed,
+                extra,
+                source,
+                last_updated,
+                result_notification_sent,
+                date
             FROM pro_tips
-            WHERE date IS NOT NULL
-              AND fixture_id IS NOT NULL
-              AND home_team IS NOT NULL
-              AND away_team IS NOT NULL
-              AND date < CURRENT_DATE
-              AND date >= CURRENT_DATE - INTERVAL '14 days'
-            ORDER BY date DESC, id DESC
-            LIMIT 3 OFFSET 4
-        """)
+            WHERE date IS NOT NULL 
+              AND date < CURRENT_DATE                    -- Only past matches
+              AND date >= CURRENT_DATE - INTERVAL '30 days'  -- Last 30 days (increased from 14)
+            ORDER BY date DESC, match_datetime DESC, id DESC
+            LIMIT %s 
+            OFFSET %s
+        """, (limit, offset))
 
         rows = cursor.fetchall()
         result = []
@@ -464,7 +483,7 @@ def get_premium_history():
         for r in rows:
             row = dict(r)
 
-            # Safe datetime handling
+            # Safe datetime processing
             dt = row.get("match_datetime")
             if isinstance(dt, datetime):
                 if dt.tzinfo is None:
@@ -476,22 +495,21 @@ def get_premium_history():
                 row["match_time"] = None
                 row["date"] = row.get("date")
 
-            # Safe last_updated
             if isinstance(row.get("last_updated"), datetime):
                 row["last_updated"] = row["last_updated"].isoformat()
 
-            # Safe model creation
             try:
                 result.append(FixtureOut(**row))
             except Exception as e:
                 print(f"Validation error for fixture {row.get('fixture_id')}: {e}")
                 continue
 
+        # Cache for 10 minutes
         set_cache(cache_key, result, 600)
         return result
 
     except Exception as e:
-        print(f"🔥 ERROR in get_premium_history: {str(e)}")
+        print(f"ERROR in get_premium_history: {e}")
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail="Failed to fetch premium history") from e
@@ -499,8 +517,6 @@ def get_premium_history():
     finally:
         cursor.close()
         release_db(conn)
-
-
 @app.get("/fixtures/{fixture_date}", response_model=List[FixtureOut])
 def get_fixtures(fixture_date: str):
 

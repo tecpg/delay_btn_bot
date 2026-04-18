@@ -267,6 +267,10 @@ def process_form_data(fixtures_data, current_team_name):
     return form_results
 
 
+# ────────────────────────────────────────────────
+# NOTIFICATION
+# ────────────────────────────────────────────────
+
 
 @app.post("/notifications/enable-fixture")
 async def enable_fixture_notification(pref: NotificationPreference):
@@ -313,10 +317,6 @@ async def get_fixture_notification_status(device_id: str, fixture_id: int):
     release_db(conn)
     
     return {"enabled": result[0] if result else False}
-# ────────────────────────────────────────────────
-# FIXTURES
-# ────────────────────────────────────────────────
-
 
 
 @app.post("/device/register")
@@ -367,6 +367,10 @@ async def test_reminder(fixture_id: int):
         await notification_service.send_match_reminder(fixture)
         return {"status": "test_reminder_sent", "fixture_id": fixture_id}
     return {"error": "Fixture not found"}
+
+# ────────────────────────────────────────────────
+# FIXTURES
+# ────────────────────────────────────────────────
 
 
 from datetime import date, datetime
@@ -510,6 +514,73 @@ def get_premium_fixtures(fixture_date: date):
     finally:
         cursor.close()
         release_db(conn)
+
+
+@app.get("/fixtures/{fixture_date}", response_model=List[FixtureOut])
+def get_fixtures(fixture_date: str):
+
+    if fixture_date == "today":
+        fixture_date = str(date.today())
+
+    cache_key = f"fixtures:{fixture_date}"
+    cached = get_cache(cache_key)
+    if cached:
+        return cached
+
+    conn = get_db()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+    try:
+        cursor.execute("""
+            SELECT *
+            FROM pro_tips
+            WHERE date = %s
+            ORDER BY match_time DESC
+        """, (fixture_date,))
+
+        rows = cursor.fetchall()
+
+        result = []
+
+        for r in rows:
+            row = dict(r)
+
+            # ✅ HANDLE match_datetime (UTC ONLY)
+            if row.get("match_datetime"):
+                dt = row["match_datetime"]
+
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=ZoneInfo("UTC"))
+
+                # 🔥 KEEP UTC ONLY (client will convert)
+                row["match_datetime"] = dt.isoformat()
+
+                # optional fallback display
+                row["match_time"] = dt.strftime("%H:%M")
+                row["date"] = dt.strftime("%Y-%m-%d")
+
+            else:
+                row["match_time"] = None
+                row["date"] = fixture_date
+
+            # ✅ serialize last_updated
+            if row.get("last_updated"):
+                row["last_updated"] = row["last_updated"].isoformat()
+
+            result.append(row)
+
+        ttl = get_ttl(date.fromisoformat(fixture_date))
+
+        # ✅ cache CORRECT data
+        set_cache(cache_key, result, ttl)
+
+        return result
+
+    finally:
+        cursor.close()
+        release_db(conn)
+
+
 
 
 # ────────────────────────────────────────────────

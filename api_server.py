@@ -362,13 +362,13 @@ async def test_reminder(fixture_id: int):
     return {"error": "Fixture not found"}
 
 
-@app.get("/fixtures/premium/{fixture_date}", response_model=List[FixtureOut])
-def get_premium_fixtures(fixture_date: str):
+@app.get("/fixtures/secondary/{fixture_date}", response_model=List[FixtureOut])
+def get_secondary_fixtures(fixture_date: str):
 
     if fixture_date == "today":
         fixture_date = str(date.today())
 
-    cache_key = f"fixtures_premium:{fixture_date}"
+    cache_key = f"fixtures_secondary:{fixture_date}"
     cached = get_cache(cache_key)
     if cached:
         return cached
@@ -381,7 +381,7 @@ def get_premium_fixtures(fixture_date: str):
             SELECT *
             FROM pro_tips
             WHERE date = %s
-            ORDER BY id DESC
+            ORDER BY date DESC
             LIMIT 3 OFFSET 4
         """, (fixture_date,))
 

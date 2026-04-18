@@ -95,8 +95,7 @@ class FixtureOut(BaseModel):
             return f"{float(v):.2f}"
         return str(v)
 
-from pydantic import BaseModel
-from typing import Optional
+
 
 class NotificationPreference(BaseModel):
     device_id: str

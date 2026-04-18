@@ -375,10 +375,12 @@ async def test_reminder(fixture_id: int):
 from datetime import date, datetime
 from fastapi import HTTPException
 
+
+
 @app.get("/fixtures/premium-history", response_model=List[FixtureOut])
 def get_premium_history():
 
-    cache_key = "fixtures_premium_history_v3"  # new version
+    cache_key = "fixtures_premium_history_v4"  # bump version
     cached = get_cache(cache_key)
     if cached:
         return cached
@@ -413,7 +415,7 @@ def get_premium_history():
             WHERE date IS NOT NULL
               AND CAST(date AS DATE) < CURRENT_DATE
               AND CAST(date AS DATE) >= CURRENT_DATE - INTERVAL '14 days'
-            ORDER BY CAST(date AS DATE) DESC, fixture_id DESC
+            ORDER BY id DESC
             LIMIT 3 OFFSET 4
         """)
 
@@ -449,6 +451,7 @@ def get_premium_history():
         cursor.close()
         release_db(conn)
 
+        
 
 # ✅ MUST COME AFTER (DYNAMIC ROUTE)
 @app.get("/fixtures/premium/{fixture_date}", response_model=List[FixtureOut])

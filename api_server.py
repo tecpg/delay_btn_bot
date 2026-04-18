@@ -377,9 +377,9 @@ from datetime import date, datetime
 from fastapi import HTTPException
 
 @app.get("/fixtures/premium-history", response_model=List[FixtureOut])
-def get_premium_history(limit: int = 6, offset: int = 0):
+def get_premium_history():
 
-    cache_key = f"fixtures_premium_history_v2:{limit}:{offset}"  # versioned
+    cache_key = "fixtures_premium_history_v3"  # new version
     cached = get_cache(cache_key)
     if cached:
         return cached
@@ -413,10 +413,10 @@ def get_premium_history(limit: int = 6, offset: int = 0):
             FROM pro_tips
             WHERE date IS NOT NULL
               AND CAST(date AS DATE) < CURRENT_DATE
-              AND CAST(date AS DATE) >= CURRENT_DATE - INTERVAL '30 days'
+              AND CAST(date AS DATE) >= CURRENT_DATE - INTERVAL '14 days'
             ORDER BY CAST(date AS DATE) DESC, fixture_id DESC
-            LIMIT %s OFFSET %s
-        """, (limit, offset))
+            LIMIT 3 OFFSET 4
+        """)
 
         rows = cursor.fetchall()
         result = []
@@ -424,10 +424,8 @@ def get_premium_history(limit: int = 6, offset: int = 0):
         for r in rows:
             row = dict(r)
 
-            dt = row.get("match_datetime")
-
-            # ✅ ALWAYS set safe defaults
             row["match_time"] = None
+            dt = row.get("match_datetime")
 
             if isinstance(dt, datetime):
                 if dt.tzinfo is None:
@@ -437,28 +435,21 @@ def get_premium_history(limit: int = 6, offset: int = 0):
                 row["match_time"] = dt.strftime("%H:%M")
                 row["date"] = dt.strftime("%Y-%m-%d")
 
-            # ✅ last_updated safe
             if isinstance(row.get("last_updated"), datetime):
                 row["last_updated"] = row["last_updated"].isoformat()
 
             try:
                 result.append(FixtureOut(**row))
-            except Exception as e:
-                print(f"Validation error for fixture {row.get('fixture_id')}: {e}")
+            except Exception:
                 continue
 
         set_cache(cache_key, result, 600)
         return result
 
-    except Exception as e:
-        print("🔥 ERROR:", str(e))
-        raise HTTPException(500, "Failed to fetch premium history")
-
     finally:
         cursor.close()
         release_db(conn)
 
-        
 
 # ✅ MUST COME AFTER (DYNAMIC ROUTE)
 @app.get("/fixtures/premium/{fixture_date}", response_model=List[FixtureOut])

@@ -422,6 +422,97 @@ def get_premium_fixtures(fixture_date: str):
         cursor.close()
         release_db(conn)
 
+
+
+
+
+@app.get("/fixtures/premium/history", response_model=List[FixtureOut])
+def get_premium_history():
+
+    cache_key = "fixtures_premium_history"
+    cached = get_cache(cache_key)
+    if cached:
+        return cached
+
+    conn = get_db()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+    try:
+        cursor.execute("""
+            SELECT
+                fixture_id,
+                league,
+                league_logo,
+                league_country,
+                home_team,
+                home_logo,
+                away_team,
+                away_logo,
+                match_datetime,
+                prediction,
+                odd,
+                home_score,
+                away_score,
+                status,
+                elapsed,
+                extra,
+                source,
+                last_updated,
+                result_notification_sent
+            FROM pro_tips
+            WHERE date IS NOT NULL
+              AND fixture_id IS NOT NULL
+              AND home_team IS NOT NULL
+              AND away_team IS NOT NULL
+              AND CAST(date AS DATE) < CURRENT_DATE
+              AND CAST(date AS DATE) >= (CURRENT_DATE - INTERVAL '14 days')
+            ORDER BY CAST(date AS DATE) DESC, id DESC
+            LIMIT 3 OFFSET 4
+        """)
+
+        rows = cursor.fetchall()
+        result = []
+
+        for r in rows:
+            row = dict(r)
+
+            dt = row.get("match_datetime")
+
+            # ✅ SAFE datetime handling
+            if isinstance(dt, datetime):
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=ZoneInfo("UTC"))
+
+                row["match_datetime"] = dt.isoformat()
+                row["match_time"] = dt.strftime("%H:%M")
+                row["date"] = dt.strftime("%Y-%m-%d")
+            else:
+                row["match_time"] = None
+                row["date"] = None
+
+            # ✅ SAFE last_updated
+            if isinstance(row.get("last_updated"), datetime):
+                row["last_updated"] = row["last_updated"].isoformat()
+
+            # ✅ Explicit model validation (best practice)
+            result.append(FixtureOut(**row))
+
+        set_cache(cache_key, result, 600)
+
+        return result
+
+    except Exception as e:
+        print("🔥 ERROR:", str(e))
+        raise HTTPException(500, "Internal Server Error")
+
+    finally:
+        cursor.close()
+        release_db(conn)
+
+
+
+
+
 @app.get("/fixtures/{fixture_date}", response_model=List[FixtureOut])
 def get_fixtures(fixture_date: str):
 

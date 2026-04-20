@@ -372,15 +372,10 @@ async def test_reminder(fixture_id: int):
 # ────────────────────────────────────────────────
 
 
-from datetime import date, datetime
-from fastapi import HTTPException
+@app.get("/fixtures/vip", response_model=List[FixtureOut])
+def get_vip_fixtures():
 
-
-
-@app.get("/fixtures/premium-history", response_model=List[FixtureOut])
-def get_premium_history():
-
-    cache_key = "fixtures_premium_history_v4"  # bump version
+    cache_key = "fixtures_vip_today"
     cached = get_cache(cache_key)
     if cached:
         return cached
@@ -389,34 +384,25 @@ def get_premium_history():
     cursor = conn.cursor(cursor_factory=RealDictCursor)
 
     try:
+        # 🔥 Ensure 3 VIP picks exist (only once per day ideally)
         cursor.execute("""
-            SELECT 
-                fixture_id,
-                league,
-                league_logo,
-                league_country,
-                home_team,
-                home_logo,
-                away_team,
-                away_logo,
-                match_datetime,
-                prediction,
-                odd,
-                home_score,
-                away_score,
-                status,
-                elapsed,
-                extra,
-                source,
-                last_updated,
-                result_notification_sent,
-                date
+            INSERT INTO vip_tips (fixture_id)
+            SELECT fixture_id
             FROM pro_tips
-            WHERE date IS NOT NULL
-              AND CAST(date AS DATE) < CURRENT_DATE
-              AND CAST(date AS DATE) >= CURRENT_DATE - INTERVAL '14 days'
-            ORDER BY id DESC
-            LIMIT 3 OFFSET 4
+            WHERE date = CURRENT_DATE
+            ORDER BY RANDOM()
+            LIMIT 3
+            ON CONFLICT (fixture_id) DO NOTHING
+        """)
+
+        # 🔥 Fetch VIP fixtures (ALWAYS up-to-date)
+        cursor.execute("""
+            SELECT p.*
+            FROM pro_tips p
+            JOIN vip_tips v ON p.fixture_id = v.fixture_id
+            WHERE p.date = CURRENT_DATE
+            ORDER BY p.id DESC
+            LIMIT 3
         """)
 
         rows = cursor.fetchall()
@@ -444,72 +430,76 @@ def get_premium_history():
             except Exception:
                 continue
 
-        set_cache(cache_key, result, 600)
+        set_cache(cache_key, result, 300)  # short cache (5min)
         return result
 
     finally:
         cursor.close()
         release_db(conn)
 
-        
-
-# ✅ MUST COME AFTER (DYNAMIC ROUTE)
-@app.get("/fixtures/premium/{fixture_date}", response_model=List[FixtureOut])
-def get_premium_fixtures(fixture_date: date):
-
-    if fixture_date == date.today():
-        fixture_date = date.today()
-
-    cache_key = f"fixtures_premium:{fixture_date}"
-    cached = get_cache(cache_key)
-    if cached:
-        return cached
+@app.get("/fixtures/vip-history")
+def get_vip_history():
 
     conn = get_db()
     cursor = conn.cursor(cursor_factory=RealDictCursor)
 
     try:
         cursor.execute("""
-            SELECT *
-            FROM pro_tips
-            WHERE date = %s
-            ORDER BY id DESC
-            LIMIT 3 OFFSET 4
-        """, (fixture_date,))
+            SELECT p.*
+            FROM vip_tips v
+            JOIN pro_tips p ON p.fixture_id = v.fixture_id
+            ORDER BY CAST(p.date AS DATE) DESC, p.id DESC
+        """)
 
         rows = cursor.fetchall()
-        result = []
+
+        grouped = {}
 
         for r in rows:
             row = dict(r)
 
-            if row.get("match_datetime"):
-                dt = row["match_datetime"]
+            # 🔥 normalize datetime
+            row["match_time"] = None
+            dt = row.get("match_datetime")
 
+            if isinstance(dt, datetime):
                 if dt.tzinfo is None:
                     dt = dt.replace(tzinfo=ZoneInfo("UTC"))
 
                 row["match_datetime"] = dt.isoformat()
                 row["match_time"] = dt.strftime("%H:%M")
                 row["date"] = dt.strftime("%Y-%m-%d")
-            else:
-                row["match_time"] = None
-                row["date"] = str(fixture_date)
 
-            if row.get("last_updated"):
+            if isinstance(row.get("last_updated"), datetime):
                 row["last_updated"] = row["last_updated"].isoformat()
 
-            result.append(row)
+            try:
+                item = FixtureOut(**row)
+            except Exception:
+                continue
 
-        ttl = get_ttl(fixture_date)
-        set_cache(cache_key, result, ttl)
+            # 🔥 GROUP BY DATE
+            match_date = item.date or "unknown"
+
+            if match_date not in grouped:
+                grouped[match_date] = []
+
+            grouped[match_date].append(item)
+
+        # 🔥 convert to list format (clean API)
+        result = [
+            {
+                "date": d,
+                "fixtures": grouped[d]
+            }
+            for d in sorted(grouped.keys(), reverse=True)
+        ]
 
         return result
 
     finally:
         cursor.close()
         release_db(conn)
-
 
 @app.get("/fixtures/{fixture_date}", response_model=List[FixtureOut])
 def get_fixtures(fixture_date: str):

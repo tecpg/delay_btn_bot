@@ -566,8 +566,6 @@ def get_fixtures(fixture_date: str):
         release_db(conn)
 
 
-
-
 # ────────────────────────────────────────────────
 # FIXTURE DETAILS
 # ────────────────────────────────────────────────

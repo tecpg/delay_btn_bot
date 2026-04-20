@@ -55,9 +55,16 @@ class DeviceRegistration(BaseModel):
     device_model: Optional[str] = None
     app_version: Optional[str] = None
 
+from pydantic import BaseModel, field_validator
+from typing import Optional
+from datetime import datetime
+
+
 class FixtureOut(BaseModel):
+    # 🔒 keep required (since you plan to clean DB)
     fixture_id: int
     league: str
+
     league_logo: Optional[str] = None
     league_country: Optional[str] = None
 
@@ -67,9 +74,9 @@ class FixtureOut(BaseModel):
     away_team: str
     away_logo: Optional[str] = None
 
+    # ✅ computed fields
     match_time: Optional[str] = None
-    date: Optional[str] = None                    # ← Made Optional (was causing crash)
-
+    date: Optional[str] = None
     match_datetime: Optional[str] = None
 
     prediction: Optional[str] = None
@@ -83,9 +90,25 @@ class FixtureOut(BaseModel):
 
     source: Optional[str] = None
     last_updated: Optional[str] = None
-    result_notification_sent: Optional[bool] = False
+    result_notification_sent: bool = False  # 🔥 not Optional
 
-    # Safe conversion for odd (float → str)
+    # 🔥 FIX 1: handle datetime → string safely
+    @field_validator('match_datetime', mode='before')
+    @classmethod
+    def convert_datetime(cls, v):
+        if isinstance(v, datetime):
+            return v.isoformat()
+        return v
+
+    # 🔥 FIX 2: ensure date is always string
+    @field_validator('date', mode='before')
+    @classmethod
+    def convert_date(cls, v):
+        if isinstance(v, datetime):
+            return v.strftime("%Y-%m-%d")
+        return v
+
+    # 🔥 FIX 3: odd normalization (your original, improved)
     @field_validator('odd', mode='before')
     @classmethod
     def convert_odd(cls, v):
@@ -95,8 +118,24 @@ class FixtureOut(BaseModel):
             return f"{float(v):.2f}"
         return str(v)
 
+    # 🔥 FIX 4: ensure strings are never None
+    @field_validator('league', 'home_team', 'away_team', mode='before')
+    @classmethod
+    def prevent_none_strings(cls, v):
+        return v or ""
 
-
+    # 🔥 FIX 5: scores safe cast
+    @field_validator('home_score', 'away_score', mode='before')
+    @classmethod
+    def convert_scores(cls, v):
+        if v in ("", None):
+            return None
+        try:
+            return int(v)
+        except:
+            return None
+        
+        
 class NotificationPreference(BaseModel):
     device_id: str
     fixture_id: int

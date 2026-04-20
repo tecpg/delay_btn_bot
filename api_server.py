@@ -60,11 +60,14 @@ from typing import Optional
 from datetime import datetime
 
 
+from pydantic import BaseModel, field_validator
+from typing import Optional
+from datetime import datetime, date
+
+
 class FixtureOut(BaseModel):
-    # 🔒 keep required (since you plan to clean DB)
     fixture_id: int
     league: str
-
     league_logo: Optional[str] = None
     league_country: Optional[str] = None
 
@@ -74,7 +77,6 @@ class FixtureOut(BaseModel):
     away_team: str
     away_logo: Optional[str] = None
 
-    # ✅ computed fields
     match_time: Optional[str] = None
     date: Optional[str] = None
     match_datetime: Optional[str] = None
@@ -90,25 +92,33 @@ class FixtureOut(BaseModel):
 
     source: Optional[str] = None
     last_updated: Optional[str] = None
-    result_notification_sent: bool = False  # 🔥 not Optional
+    result_notification_sent: bool = False
 
-    # 🔥 FIX 1: handle datetime → string safely
+    # 🔥 FIX 1: convert date (date → string)
+    @field_validator('date', mode='before')
+    @classmethod
+    def convert_date(cls, v):
+        if isinstance(v, date):
+            return v.strftime("%Y-%m-%d")
+        return v
+
+    # 🔥 FIX 2: convert match_datetime (datetime → ISO string)
     @field_validator('match_datetime', mode='before')
     @classmethod
-    def convert_datetime(cls, v):
+    def convert_match_datetime(cls, v):
         if isinstance(v, datetime):
             return v.isoformat()
         return v
 
-    # 🔥 FIX 2: ensure date is always string
-    @field_validator('date', mode='before')
+    # 🔥 FIX 3: convert last_updated (datetime → ISO string)
+    @field_validator('last_updated', mode='before')
     @classmethod
-    def convert_date(cls, v):
+    def convert_last_updated(cls, v):
         if isinstance(v, datetime):
-            return v.strftime("%Y-%m-%d")
+            return v.isoformat()
         return v
 
-    # 🔥 FIX 3: odd normalization (your original, improved)
+    # 🔥 FIX 4: normalize odd values
     @field_validator('odd', mode='before')
     @classmethod
     def convert_odd(cls, v):
@@ -118,13 +128,13 @@ class FixtureOut(BaseModel):
             return f"{float(v):.2f}"
         return str(v)
 
-    # 🔥 FIX 4: ensure strings are never None
+    # 🔥 FIX 5: prevent None for required strings
     @field_validator('league', 'home_team', 'away_team', mode='before')
     @classmethod
     def prevent_none_strings(cls, v):
         return v or ""
 
-    # 🔥 FIX 5: scores safe cast
+    # 🔥 FIX 6: safe score conversion
     @field_validator('home_score', 'away_score', mode='before')
     @classmethod
     def convert_scores(cls, v):
@@ -133,8 +143,7 @@ class FixtureOut(BaseModel):
         try:
             return int(v)
         except:
-            return None
-        
+            return None    
 
 class NotificationPreference(BaseModel):
     device_id: str
@@ -569,7 +578,7 @@ def get_vip_history():
         cursor.close()
         release_db(conn)
 
-        
+
 
 @app.get("/fixtures/{fixture_date}", response_model=List[FixtureOut])
 def get_fixtures(fixture_date: str):

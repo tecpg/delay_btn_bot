@@ -135,7 +135,7 @@ class FixtureOut(BaseModel):
         except:
             return None
         
-        
+
 class NotificationPreference(BaseModel):
     device_id: str
     fixture_id: int
@@ -410,11 +410,10 @@ async def test_reminder(fixture_id: int):
 # FIXTURES
 # ────────────────────────────────────────────────
 
-
 @app.get("/fixtures/vip", response_model=List[FixtureOut])
-def get_vip_fixtures():
+def get_vip():
 
-    cache_key = "fixtures_vip_today"
+    cache_key = "vip_today"
     cached = get_cache(cache_key)
     if cached:
         return cached
@@ -423,58 +422,43 @@ def get_vip_fixtures():
     cursor = conn.cursor(cursor_factory=RealDictCursor)
 
     try:
-        # 🔥 Ensure 3 VIP picks exist (only once per day ideally)
+        # ✅ check if already generated today
         cursor.execute("""
-            INSERT INTO vip_tips (fixture_id)
-            SELECT fixture_id
-            FROM pro_tips
-            WHERE date = CURRENT_DATE
-            ORDER BY RANDOM()
-            LIMIT 3
-            ON CONFLICT (fixture_id) DO NOTHING
+            SELECT COUNT(*) FROM vip_tips
+            WHERE DATE(created_at) = CURRENT_DATE
         """)
+        count = cursor.fetchone()["count"]
 
-        # 🔥 Fetch VIP fixtures (ALWAYS up-to-date)
+        if count == 0:
+            cursor.execute("""
+                INSERT INTO vip_tips (fixture_id)
+                SELECT fixture_id
+                FROM pro_tips
+                WHERE date = CURRENT_DATE
+                ORDER BY RANDOM()
+                LIMIT 3
+            """)
+            conn.commit()
+
+        # ✅ fetch VIP
         cursor.execute("""
             SELECT p.*
             FROM pro_tips p
             JOIN vip_tips v ON p.fixture_id = v.fixture_id
-            WHERE p.date = CURRENT_DATE
+            WHERE DATE(v.created_at) = CURRENT_DATE
             ORDER BY p.id DESC
-            LIMIT 3
         """)
 
         rows = cursor.fetchall()
-        result = []
+        result = [FixtureOut(**dict(r)) for r in rows]
 
-        for r in rows:
-            row = dict(r)
-
-            row["match_time"] = None
-            dt = row.get("match_datetime")
-
-            if isinstance(dt, datetime):
-                if dt.tzinfo is None:
-                    dt = dt.replace(tzinfo=ZoneInfo("UTC"))
-
-                row["match_datetime"] = dt.isoformat()
-                row["match_time"] = dt.strftime("%H:%M")
-                row["date"] = dt.strftime("%Y-%m-%d")
-
-            if isinstance(row.get("last_updated"), datetime):
-                row["last_updated"] = row["last_updated"].isoformat()
-
-            try:
-                result.append(FixtureOut(**row))
-            except Exception:
-                continue
-
-        set_cache(cache_key, result, 300)  # short cache (5min)
+        set_cache(cache_key, result, 300)
         return result
 
     finally:
         cursor.close()
         release_db(conn)
+
 
 @app.get("/fixtures/vip-history")
 def get_vip_history():

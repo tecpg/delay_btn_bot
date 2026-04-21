@@ -418,13 +418,11 @@ async def test_reminder(fixture_id: int):
 # ────────────────────────────────────────────────
 # FIXTURES
 # ────────────────────────────────────────────────
-
 from fastapi import HTTPException
+from typing import List
 from datetime import datetime
 from zoneinfo import ZoneInfo
-from psycopg2.extras import RealDictCursor
 
-# ====================== TODAY'S VIP ======================
 
 @app.get("/fixtures/vip", response_model=List[FixtureOut])
 def get_vip():
@@ -438,27 +436,30 @@ def get_vip():
     cursor = conn.cursor(cursor_factory=RealDictCursor)
 
     try:
-        # ✅ check if today's picks already exist
+        # 🔥 1. Check if VIP already generated today
         cursor.execute("""
-            SELECT COUNT(*) 
+            SELECT COUNT(*) AS count
             FROM vip_tips
             WHERE vip_date = CURRENT_DATE
         """)
         count = cursor.fetchone()["count"]
 
-        # 🔥 generate ONLY once per day
+        # 🔥 2. Generate VIP picks (only once per day)
         if count == 0:
             cursor.execute("""
                 INSERT INTO vip_tips (fixture_id, vip_date)
                 SELECT fixture_id, CURRENT_DATE
                 FROM pro_tips
                 WHERE date = CURRENT_DATE
+                  AND fixture_id IS NOT NULL
+                  AND home_team IS NOT NULL
+                  AND away_team IS NOT NULL
                 ORDER BY RANDOM()
                 LIMIT 3
             """)
-            conn.commit()  # 🔥 CRITICAL
+            conn.commit()  # ✅ CRITICAL
 
-        # ✅ fetch today's VIP picks (always stable)
+        # 🔥 3. Fetch VIP picks
         cursor.execute("""
             SELECT p.*
             FROM pro_tips p
@@ -469,16 +470,54 @@ def get_vip():
 
         rows = cursor.fetchall()
 
-        # ✅ clean + validate
-        result = [FixtureOut(**dict(r)) for r in rows]
+        # 🔥 DEBUG (optional)
+        # print("VIP ROWS:", rows)
 
+        result = []
+
+        for r in rows:
+            row = dict(r)
+
+            # ✅ HARD FILTER (avoid validation crash)
+            if not row.get("fixture_id"):
+                continue
+            if not row.get("home_team") or not row.get("away_team"):
+                continue
+
+            # ✅ Normalize datetime fields (extra safety)
+            dt = row.get("match_datetime")
+            if isinstance(dt, datetime):
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=ZoneInfo("UTC"))
+                row["match_datetime"] = dt
+
+            if isinstance(row.get("last_updated"), datetime):
+                row["last_updated"] = row["last_updated"]
+
+            try:
+                result.append(FixtureOut(**row))
+            except Exception as e:
+                print("❌ VIP BAD ROW:", row.get("fixture_id"), e)
+                continue
+
+        # 🔥 4. Prevent crash if empty
+        if not result:
+            return []
+
+        # 🔥 5. Cache result
         set_cache(cache_key, result, 300)
+
         return result
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(500, "Failed to fetch VIP fixtures")
 
     finally:
         cursor.close()
         release_db(conn)
-
+        
 # ====================== VIP HISTORY (Grouped by Date) ======================
 @app.get("/fixtures/vip-history")
 def get_vip_history():

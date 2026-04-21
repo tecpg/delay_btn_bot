@@ -247,6 +247,61 @@ def insert_matched_fixtures(data):
     finally:
         cursor.close()
         conn.close()
+
+
+def insert_vip_tips(matched_data):
+    if not matched_data:
+        print("⚠️ No matched data for VIP")
+        return
+
+    import hashlib
+    from datetime import date
+
+    today = date.today()
+
+    conn = get_db()
+    cursor = conn.cursor()
+
+    try:
+        # 🔥 Check if VIP already exists for today
+        cursor.execute("""
+            SELECT COUNT(*) 
+            FROM vip_tips 
+            WHERE vip_date = %s
+        """, (today,))
+        count = cursor.fetchone()[0]
+
+        if count > 0:
+            print("✅ VIP already generated for today")
+            return
+
+        # 🔥 Deterministic "random" picks (stable per day)
+        picks = sorted(
+            matched_data,
+            key=lambda x: hashlib.md5(
+                (str(x["fixture_id"]) + str(today)).encode()
+            ).hexdigest()
+        )[:min(3, len(matched_data))]
+
+        values = [(p["fixture_id"], today) for p in picks]
+
+        cursor.executemany("""
+            INSERT INTO vip_tips (fixture_id, vip_date)
+            VALUES (%s, %s)
+        """, values)
+
+        conn.commit()
+
+        print(f"🔥 VIP PICKS GENERATED: {len(values)}")
+
+    except Exception as e:
+        print("❌ VIP INSERT ERROR:", e)
+        conn.rollback()
+
+    finally:
+        cursor.close()
+        conn.close()
+
 # ────────────────────────────────────────────────
 # MAIN
 # ────────────────────────────────────────────────
@@ -257,7 +312,12 @@ def run():
     matched = get_matched_fixtures(api_fixtures, predictions)
 
     save_to_csv(matched)
+
+    # 🔥 insert into pro_tips
     insert_matched_fixtures(matched)
+
+    # 🔥 generate VIP from same matched data
+    insert_vip_tips(matched)
 
 
 if __name__ == "__main__":

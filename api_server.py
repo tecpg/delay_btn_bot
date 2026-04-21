@@ -424,6 +424,12 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 
+from fastapi import HTTPException
+from typing import List
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
+
 @app.get("/fixtures/vip", response_model=List[FixtureOut])
 def get_vip():
 
@@ -436,30 +442,7 @@ def get_vip():
     cursor = conn.cursor(cursor_factory=RealDictCursor)
 
     try:
-        # 🔥 1. Check if VIP already generated today
-        cursor.execute("""
-            SELECT COUNT(*) AS count
-            FROM vip_tips
-            WHERE vip_date = CURRENT_DATE
-        """)
-        count = cursor.fetchone()["count"]
-
-        # 🔥 2. Generate VIP picks (only once per day)
-        if count == 0:
-            cursor.execute("""
-                INSERT INTO vip_tips (fixture_id, vip_date)
-                SELECT fixture_id, CURRENT_DATE
-                FROM pro_tips
-                WHERE date = CURRENT_DATE
-                  AND fixture_id IS NOT NULL
-                  AND home_team IS NOT NULL
-                  AND away_team IS NOT NULL
-                ORDER BY RANDOM()
-                LIMIT 3
-            """)
-            conn.commit()  # ✅ CRITICAL
-
-        # 🔥 3. Fetch VIP picks
+        # 🔥 ONLY FETCH (no insert anymore)
         cursor.execute("""
             SELECT p.*
             FROM pro_tips p
@@ -470,21 +453,18 @@ def get_vip():
 
         rows = cursor.fetchall()
 
-        # 🔥 DEBUG (optional)
-        # print("VIP ROWS:", rows)
-
         result = []
 
         for r in rows:
             row = dict(r)
 
-            # ✅ HARD FILTER (avoid validation crash)
+            # ✅ HARD FILTER
             if not row.get("fixture_id"):
                 continue
             if not row.get("home_team") or not row.get("away_team"):
                 continue
 
-            # ✅ Normalize datetime fields (extra safety)
+            # ✅ datetime normalization
             dt = row.get("match_datetime")
             if isinstance(dt, datetime):
                 if dt.tzinfo is None:
@@ -500,13 +480,11 @@ def get_vip():
                 print("❌ VIP BAD ROW:", row.get("fixture_id"), e)
                 continue
 
-        # 🔥 4. Prevent crash if empty
+        # ✅ safe empty
         if not result:
             return []
 
-        # 🔥 5. Cache result
         set_cache(cache_key, result, 300)
-
         return result
 
     except Exception as e:
@@ -517,11 +495,11 @@ def get_vip():
     finally:
         cursor.close()
         release_db(conn)
-        
 # ====================== VIP HISTORY (Grouped by Date) ======================
+
 @app.get("/fixtures/vip-history")
 def get_vip_history():
-    """Get VIP prediction history grouped by date"""
+
     cache_key = "vip_history"
     cached = get_cache(cache_key)
     if cached:
@@ -532,11 +510,10 @@ def get_vip_history():
 
     try:
         cursor.execute("""
-            SELECT p.*
+            SELECT p.*, v.vip_date
             FROM vip_tips v
             JOIN pro_tips p ON p.fixture_id = v.fixture_id
-            WHERE p.date IS NOT NULL
-            ORDER BY p.date DESC, p.id DESC
+            ORDER BY v.vip_date DESC, p.id DESC
         """)
 
         rows = cursor.fetchall()
@@ -545,33 +522,31 @@ def get_vip_history():
         for r in rows:
             row = dict(r)
 
-            # Safe datetime handling
+            # ✅ normalize datetime
             dt = row.get("match_datetime")
             if isinstance(dt, datetime):
                 if dt.tzinfo is None:
                     dt = dt.replace(tzinfo=ZoneInfo("UTC"))
                 row["match_datetime"] = dt.isoformat()
                 row["match_time"] = dt.strftime("%H:%M")
-                row["date"] = dt.strftime("%Y-%m-%d")
-            else:
-                row["match_time"] = None
-                row["date"] = row.get("date")
 
             if isinstance(row.get("last_updated"), datetime):
                 row["last_updated"] = row["last_updated"].isoformat()
 
+            # 🔥 GROUP BY vip_date (NOT match date)
+            group_date = str(row.get("vip_date"))
+
             try:
                 item = FixtureOut(**row)
-                match_date = item.date or "unknown"
-
-                if match_date not in grouped:
-                    grouped[match_date] = []
-                grouped[match_date].append(item)
             except Exception as e:
-                print(f"Validation error in VIP history: {e}")
+                print("❌ VIP HISTORY BAD ROW:", e)
                 continue
 
-        # Convert to grouped format
+            if group_date not in grouped:
+                grouped[group_date] = []
+
+            grouped[group_date].append(item)
+
         result = [
             {
                 "date": d,
@@ -580,18 +555,14 @@ def get_vip_history():
             for d in sorted(grouped.keys(), reverse=True)
         ]
 
-        set_cache(cache_key, result, 1800)  # Cache for 30 minutes
+        set_cache(cache_key, result, 1800)
         return result
-
-    except Exception as e:
-        print(f"ERROR in get_vip_history: {e}")
-        raise HTTPException(status_code=500, detail="Failed to fetch VIP history") from e
 
     finally:
         cursor.close()
         release_db(conn)
-
-
+    
+    
 
 @app.get("/fixtures/{fixture_date}", response_model=List[FixtureOut])
 def get_fixtures(fixture_date: str):

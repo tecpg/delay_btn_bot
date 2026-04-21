@@ -424,12 +424,6 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 
-from fastapi import HTTPException
-from typing import List
-from datetime import datetime
-from zoneinfo import ZoneInfo
-
-
 @app.get("/fixtures/vip", response_model=List[FixtureOut])
 def get_vip():
 
@@ -495,6 +489,7 @@ def get_vip():
     finally:
         cursor.close()
         release_db(conn)
+
 # ====================== VIP HISTORY (Grouped by Date) ======================
 
 @app.get("/fixtures/vip-history")
@@ -562,7 +557,7 @@ def get_vip_history():
         cursor.close()
         release_db(conn)
     
-    
+
 
 @app.get("/fixtures/{fixture_date}", response_model=List[FixtureOut])
 def get_fixtures(fixture_date: str):

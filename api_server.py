@@ -425,9 +425,10 @@ from zoneinfo import ZoneInfo
 from psycopg2.extras import RealDictCursor
 
 # ====================== TODAY'S VIP ======================
+
 @app.get("/fixtures/vip", response_model=List[FixtureOut])
 def get_vip():
-    """Get today's 3 random VIP predictions"""
+
     cache_key = "vip_today"
     cached = get_cache(cache_key)
     if cached:
@@ -437,73 +438,46 @@ def get_vip():
     cursor = conn.cursor(cursor_factory=RealDictCursor)
 
     try:
-        # Check if VIP tips already generated today
+        # ✅ check if today's picks already exist
         cursor.execute("""
-            SELECT COUNT(*) as count 
-            FROM vip_tips 
-            WHERE DATE(created_at) = CURRENT_DATE
+            SELECT COUNT(*) 
+            FROM vip_tips
+            WHERE vip_date = CURRENT_DATE
         """)
         count = cursor.fetchone()["count"]
 
-        # Generate new VIP tips if none exist for today
+        # 🔥 generate ONLY once per day
         if count == 0:
             cursor.execute("""
-                INSERT INTO vip_tips (fixture_id, created_at)
-                SELECT fixture_id, NOW()
+                INSERT INTO vip_tips (fixture_id, vip_date)
+                SELECT fixture_id, CURRENT_DATE
                 FROM pro_tips
                 WHERE date = CURRENT_DATE
                 ORDER BY RANDOM()
                 LIMIT 3
             """)
-            conn.commit()
+            conn.commit()  # 🔥 CRITICAL
 
-        # Fetch today's VIP fixtures
+        # ✅ fetch today's VIP picks (always stable)
         cursor.execute("""
             SELECT p.*
             FROM pro_tips p
             JOIN vip_tips v ON p.fixture_id = v.fixture_id
-            WHERE DATE(v.created_at) = CURRENT_DATE
-            ORDER BY p.match_datetime ASC
+            WHERE v.vip_date = CURRENT_DATE
+            ORDER BY p.id DESC
         """)
 
         rows = cursor.fetchall()
-        result = []
 
-        for r in rows:
-            row = dict(r)
+        # ✅ clean + validate
+        result = [FixtureOut(**dict(r)) for r in rows]
 
-            # Safe datetime handling
-            dt = row.get("match_datetime")
-            if isinstance(dt, datetime):
-                if dt.tzinfo is None:
-                    dt = dt.replace(tzinfo=ZoneInfo("UTC"))
-                row["match_datetime"] = dt.isoformat()
-                row["match_time"] = dt.strftime("%H:%M")
-                row["date"] = dt.strftime("%Y-%m-%d")
-            else:
-                row["match_time"] = None
-                row["date"] = str(date.today())
-
-            if isinstance(row.get("last_updated"), datetime):
-                row["last_updated"] = row["last_updated"].isoformat()
-
-            try:
-                result.append(FixtureOut(**row))
-            except Exception as e:
-                print(f"Validation error in VIP: {e}")
-                continue
-
-        set_cache(cache_key, result, 300)  # 5 minutes cache
+        set_cache(cache_key, result, 300)
         return result
-
-    except Exception as e:
-        print(f"ERROR in get_vip: {e}")
-        raise HTTPException(status_code=500, detail="Failed to fetch VIP fixtures") from e
 
     finally:
         cursor.close()
         release_db(conn)
-
 
 # ====================== VIP HISTORY (Grouped by Date) ======================
 @app.get("/fixtures/vip-history")

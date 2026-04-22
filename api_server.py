@@ -511,10 +511,13 @@ def get_vip_history():
 
     try:
         cursor.execute("""
-            SELECT p.*, v.vip_date
-            FROM vip_tips v
-            JOIN pro_tips p ON p.fixture_id = v.fixture_id
-            ORDER BY v.vip_date DESC, p.id DESC
+    
+SELECT p.*, v.vip_date
+FROM vip_tips v
+JOIN pro_tips p ON p.fixture_id = v.fixture_id
+WHERE v.vip_date < CURRENT_DATE   -- ✅ EXCLUDE TODAY
+ORDER BY v.vip_date DESC, p.id DESC
+
         """)
 
         rows = cursor.fetchall()

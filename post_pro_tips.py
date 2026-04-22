@@ -249,6 +249,7 @@ def insert_matched_fixtures(data):
         conn.close()
 
 
+
 def insert_vip_tips(matched_data):
     if not matched_data:
         print("⚠️ No matched data for VIP")
@@ -263,25 +264,27 @@ def insert_vip_tips(matched_data):
     cursor = conn.cursor()
 
     try:
-        # 🔥 Check if VIP already exists for today
         cursor.execute("""
             SELECT COUNT(*) 
             FROM vip_tips 
             WHERE vip_date = %s
         """, (today,))
-        count = cursor.fetchone()[0]
 
+        row = cursor.fetchone()
+        count = int(row["count"]) if row else 0
+
+        # ✅ correct logic
         if count > 0:
-            print("✅ VIP already generated for today")
+            print("✅ VIP already exists for today")
             return
 
-        # 🔥 Deterministic "random" picks (stable per day)
+        # 🔥 deterministic picks
         picks = sorted(
             matched_data,
             key=lambda x: hashlib.md5(
                 (str(x["fixture_id"]) + str(today)).encode()
             ).hexdigest()
-        )[:min(3, len(matched_data))]
+        )[:3]
 
         values = [(p["fixture_id"], today) for p in picks]
 
@@ -295,7 +298,9 @@ def insert_vip_tips(matched_data):
         print(f"🔥 VIP PICKS GENERATED: {len(values)}")
 
     except Exception as e:
-        print("❌ VIP INSERT ERROR:", e)
+        import traceback
+        print("❌ REAL ERROR:", repr(e))
+        traceback.print_exc()
         conn.rollback()
 
     finally:

@@ -591,6 +591,34 @@ ORDER BY v.vip_date DESC, p.id DESC
         release_db(conn) 
 
 
+@app.post("/fixtures/vip-updates")
+def get_vip_updates(fixture_ids: List[int]):
+
+    conn = get_db()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+    try:
+        cursor.execute("""
+            SELECT 
+                fixture_id,
+                home_score,
+                away_score,
+                status,
+                elapsed
+            FROM pro_tips
+            WHERE fixture_id = ANY(%s)
+        """, (fixture_ids,))
+
+        rows = cursor.fetchall()
+
+        return rows
+
+    finally:
+        cursor.close()
+        release_db(conn)
+
+        
+
 @app.get("/fixtures/{fixture_date}", response_model=List[FixtureOut])
 def get_fixtures(fixture_date: str):
 

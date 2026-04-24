@@ -14,7 +14,7 @@ class MatchNotificationService:
         # ✅ TEMPORARY: Hardcode for testing
         self.onesignal_api_key = "os_v2_app_bag6ymcddvegfhpotuu5nquhlgxljak6q2ruqiuasy57mhmk5ld5yr6oy3ks2qhajcw4qfnzeqfv6v4q4xzpf5tbeoj45mfdqxsxiqq"
         
-        self.api_url = "https://api.onesignal.com/notifications"
+        self.api_url = "https://onesignal.com/api/v1/notifications"
         
         print(f"🔑 API Key loaded (first 20 chars): {self.onesignal_api_key[:20]}...")
         print(f"📱 App ID: {self.onesignal_app_id}")
@@ -64,7 +64,7 @@ class MatchNotificationService:
             response = await client.post(
                 self.api_url,
                 headers={
-                    "Authorization": f"Key {self.onesignal_api_key}",
+                    "Authorization": f"Basic {self.onesignal_api_key}",
                     "Content-Type": "application/json"
                 },
                 json=notification_data

@@ -18,7 +18,7 @@ access_token_secret = os.environ['access_token_secret']
 
 # Read environment variables
 onesignal_app_id = os.getenv("ONESIGNAL_APP_ID")
-onesignal_app_key = os.getenv("ONESIGNAL_API_KEY") or os.getenv("ONESIGNAL_APP_KEY")
+onesignal_app_key = os.getenv("ONESIGNAL_API_KEY")
 
 # Debug: Check if loaded (don't print full key in production)
 print(f"🔑 oneSignal_app_id loaded: {bool(onesignal_app_id)}")

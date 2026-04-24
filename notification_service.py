@@ -20,63 +20,59 @@ class MatchNotificationService:
                 print("❌ CRITICAL: API Key not loaded! Check your .env file or Railway variables.")
     async def send_match_reminder(self, fixture: Dict):
         """Send reminder that match is starting soon"""
-        devices = await self.get_devices_for_fixture(fixture['fixture_id'])
-        
-        if not devices:
-            print("No devices registered for notifications")
-            return
-        
-        # ✅ Extract values from fixture
-        match_time = fixture['match_datetime']
-        if isinstance(match_time, str):
-            match_time = datetime.fromisoformat(match_time)
-        
-        minutes_until = int((match_time - datetime.now()).total_seconds() / 60)
-        home_team = fixture['home_team']
-        away_team = fixture['away_team']
-        prediction = fixture.get('prediction', '')
-        
-        notification_data = {
-            "app_id": self.onesignal_app_id,
-            "include_player_ids": devices,
-            "headings": {"en": f"⚽ Match Starting Soon!"},
-            "contents": {
-                "en": f"🔮 {home_team} vs {away_team} starts in {minutes_until} minutes!\n\nPrediction: {prediction}"
-            },
-            "data": {
-                "type": "match_reminder",
-                "fixture_id": fixture['fixture_id'],
-                "home_team": home_team,
-                "away_team": away_team,
-                "prediction": prediction,
-                "match_time": match_time.isoformat()
-            },
-            "url": f"yourapp://fixture/{fixture['fixture_id']}",
-            # ✅ Remove android_channel_id for iOS testing
-            # "android_channel_id": "match_reminders",
-            "priority": 10
-        }
-        
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                self.api_url,
-                headers={
-                    "Authorization": f"Key {self.onesignal_api_key}",
-                    "Content-Type": "application/json"
+        try:
+            # Get devices that enabled this fixture
+            devices = await self.get_devices_for_fixture(fixture['fixture_id'])
+            
+            if not devices:
+                print(f"❌ No devices with notifications enabled for fixture {fixture['fixture_id']}")
+                return
+            
+            # Calculate minutes until match
+            match_time = fixture['match_datetime']
+            if isinstance(match_time, str):
+                match_time = datetime.fromisoformat(match_time)
+            
+            minutes_until = int((match_time - datetime.now()).total_seconds() / 60)
+            
+            # Build notification
+            notification_data = {
+                "app_id": self.onesignal_app_id,
+                "include_player_ids": devices,
+                "headings": {"en": "⚽ Match Starting Soon!"},
+                "contents": {
+                    "en": f"🔮 {fixture['home_team']} vs {fixture['away_team']} starts in {minutes_until} minutes!\n\nPrediction: {fixture.get('prediction', 'N/A')}"
                 },
-                json=notification_data
-            )
+                "data": {
+                    "type": "match_reminder",
+                    "fixture_id": fixture['fixture_id']
+                }
+            }
             
-            print(f"📬 OneSignal Response: {response.status_code} - {response.text}")
-            
-            if response.status_code == 200:
-                await self.log_reminder_sent(fixture['fixture_id'])
-                print(f"✅ Reminder sent for fixture {fixture['fixture_id']}")
-            else:
-                print(f"❌ Failed to send reminder for fixture {fixture['fixture_id']}")
-            
-            return response.json()
-    
+            # Send
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    self.api_url,
+                    headers={
+                        "Authorization": f"Key {self.onesignal_api_key}",
+                        "Content-Type": "application/json"
+                    },
+                    json=notification_data
+                )
+                
+                print(f"📬 OneSignal: {response.status_code} - {response.text}")
+                
+                if response.status_code == 200:
+                    await self.log_reminder_sent(fixture['fixture_id'])
+                    return response.json()
+                else:
+                    print(f"❌ OneSignal error: {response.text}")
+                    return None
+                    
+        except Exception as e:
+            print(f"❌ Error sending reminder: {e}")
+            return None
+
     async def send_prediction_result(self, fixture: Dict):
         """Send notification ONLY to devices that enabled notifications for this fixture"""
         

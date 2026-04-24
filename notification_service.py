@@ -12,7 +12,7 @@ class MatchNotificationService:
         self.onesignal_app_id = "080dec30-431d-4862-9dee-9d29d6c28759"
         
         # ✅ TEMPORARY: Hardcode for testing
-        self.onesignal_api_key = "os_v2_app_bag6ymcddvegfhpotuu5nquhlgxljak6q2ruqiuasy57mhmk5ld5yr6oy3ks2qhajcw4qfnzeqfv6v4q4xzpf5tbeoj45mfdqxsxiqq"
+        self.onesignal_api_key = "os_v2_app_bag6ymcddvegfhpotuu5nquhlep6lujz7lkuwiupgg5w2xubn2okzgkw3ok5sx62c27nnpl2mpc6n44ru6hjbtsv4t2bc2w4h7vma7q"
         
         self.api_url = "https://onesignal.com/api/v1/notifications"
         

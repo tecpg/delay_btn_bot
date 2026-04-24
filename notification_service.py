@@ -6,11 +6,18 @@ from db_utils import get_db, release_db
 import kbt_load_env
 
 class MatchNotificationService:
+# notification_service.py
+
     def __init__(self):
         self.onesignal_app_id = kbt_load_env.onesignal_app_id
-        self.onesignal_api_key = kbt_load_env.onesignal_app_key
+        
+        # ✅ TEMPORARY: Hardcode for testing
+        self.onesignal_api_key = "os_v2_app_bag6ymcddvegfhpotuu5nquhlewloahonmruj3u6i4db26hybyls4o2ypgqpfpfpk24qh6v6d3qrtsbxezksjn3sukuiobssihzwwmi"
+        
         self.api_url = "https://api.onesignal.com/notifications"
-    
+        
+        print(f"🔑 API Key loaded (first 20 chars): {self.onesignal_api_key[:20]}...")
+        print(f"📱 App ID: {self.onesignal_app_id}")
     async def send_match_reminder(self, fixture: Dict):
         """Send reminder ONLY to devices that enabled notifications for this fixture"""
         

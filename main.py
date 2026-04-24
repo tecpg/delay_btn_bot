@@ -52,21 +52,21 @@ def refresh_live_predictions():
             SELECT fixture_id, date, status, home_team, away_team, prediction, home_score, away_score, match_datetime
             FROM pro_tips
             WHERE match_datetime BETWEEN 
-                NOW() - INTERVAL '3 hours'      -- Catch recently finished matches
-                AND NOW() + INTERVAL '20 minutes'
+                NOW() - INTERVAL '3 hours'      
+                AND NOW() + INTERVAL '45 minutes'   -- Changed from 20 to 45 minutes
             AND (
                 -- Live matches: update every 2 minutes
                 (status IN ('1H', 'HT', '2H', 'ET', 'P') 
-                 AND (last_updated IS NULL OR last_updated < NOW() - INTERVAL '2 minutes'))
+                AND (last_updated IS NULL OR last_updated < NOW() - INTERVAL '2 minutes'))
                 OR
                 -- Finished matches: update every 10 minutes
                 (status = 'FT' 
-                 AND (last_updated IS NULL OR last_updated < NOW() - INTERVAL '10 minutes'))
+                AND (last_updated IS NULL OR last_updated < NOW() - INTERVAL '10 minutes'))
                 OR
-                -- Not started but close to kickoff
+                -- Not started but close to kickoff (15-30 min before)
                 (status = 'NS' 
-                 AND match_datetime BETWEEN NOW() - INTERVAL '30 minutes' 
-                 AND NOW() + INTERVAL '20 minutes')
+                AND match_datetime BETWEEN NOW() - INTERVAL '30 minutes' 
+                AND NOW() + INTERVAL '45 minutes')   -- Changed from 20 to 45
             )
             ORDER BY 
                 CASE 
@@ -80,9 +80,17 @@ def refresh_live_predictions():
 
         rows = cursor.fetchall()
 
-        if not rows:
-            print("⚠️ No matches to update at this time")
-            return
+        rows = cursor.fetchall()
+
+        # DEBUG: Check for fixture 1391834 specifically
+        for row in rows:
+            if row['fixture_id'] == 1391834:
+                match_time = row['match_datetime']
+                if isinstance(match_time, str):
+                    match_time = datetime.fromisoformat(match_time)
+                minutes_until = (match_time - datetime.now()).total_seconds() / 60
+                print(f"🔍 Fixture 1391834 found! Minutes until: {minutes_until:.1f}")
+                print(f"   In reminder window: {15 <= minutes_until <= 30}")
 
         print(f"🔥 Updating {len(rows)} matches")
 

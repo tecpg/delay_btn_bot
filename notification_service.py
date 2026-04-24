@@ -8,7 +8,7 @@ import kbt_load_env
 class MatchNotificationService:
     def __init__(self):
             self.onesignal_app_id = kbt_load_env.onesignal_app_id
-            self.onesignal_api_key = kbt_load_env.onesignal_app_key
+            self.onesignal_api_key = kbt_load_env.onesignal_api_key
             self.api_url = "https://api.onesignal.com/notifications"
             
             # Debug prints

@@ -121,7 +121,7 @@ class MatchNotificationService:
             response = await client.post(
                 self.api_url,
                 headers={
-                    "Authorization": f"Key {self.onesignal_api_key}",
+                    "Authorization": f"Basic {self.onesignal_api_key}",  # ✅ CORRECT,
                     "Content-Type": "application/json"
                 },
                 json=notification_data

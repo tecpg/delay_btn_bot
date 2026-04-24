@@ -7,14 +7,17 @@ import kbt_load_env
 
 class MatchNotificationService:
     def __init__(self):
-        self.onesignal_app_id = kbt_load_env.onesignal_app_id
-        self.onesignal_api_key = kbt_load_env.onesignal_app_key
-        # ✅ CORRECT API URL
-        self.api_url = "https://api.onesignal.com/notifications"  # NOT onesignal.com/api/v1/
-        
-        print(f"🔑 API Key loaded (first 20 chars): {self.onesignal_api_key[:20] if self.onesignal_api_key else 'None'}...")
-        print(f"📱 App ID: {self.onesignal_app_id}")
-    
+            self.onesignal_app_id = kbt_load_env.onesignal_app_id
+            self.onesignal_api_key = kbt_load_env.onesignal_app_key
+            self.api_url = "https://api.onesignal.com/notifications"
+            
+            # Debug prints
+            print(f"📱 App ID: {self.onesignal_app_id}")
+            print(f"🔑 API Key exists: {bool(self.onesignal_api_key)}")
+            if self.onesignal_api_key:
+                print(f"🔑 Key prefix: {self.onesignal_api_key[:15]}...")
+            else:
+                print("❌ CRITICAL: API Key not loaded! Check your .env file or Railway variables.")
     async def send_match_reminder(self, fixture: Dict):
         """Send reminder that match is starting soon"""
         devices = await self.get_devices_for_fixture(fixture['fixture_id'])

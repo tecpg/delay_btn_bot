@@ -15,8 +15,17 @@ api_football_key = os.environ['api_football_api_key']
 access_token =os.environ['access_token']
 access_token_secret = os.environ['access_token_secret']
 
-onesignal_app_id =  os.environ['onesignal_app_id']
-onesignal_app_key =  os.environ['onesignal_app_key']
+
+# Read environment variables
+onesignal_app_id = os.getenv("ONESIGNAL_APP_ID")
+onesignal_app_key = os.getenv("ONESIGNAL_API_KEY") or os.getenv("ONESIGNAL_APP_KEY")
+
+# Debug: Check if loaded (don't print full key in production)
+print(f"🔑 oneSignal_app_id loaded: {bool(onesignal_app_id)}")
+print(f"🔑 oneSignal_app_key loaded: {bool(onesignal_app_key)}")
+if onesignal_app_key:
+    print(f"🔑 Key starts with: {onesignal_app_key[:15]}...")
+
 
 client_id = os.environ['client_id']
 client_id_secret = os.environ['client_id_secret']

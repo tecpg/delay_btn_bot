@@ -415,6 +415,40 @@ async def test_reminder(fixture_id: int):
         return {"status": "test_reminder_sent", "fixture_id": fixture_id}
     return {"error": "Fixture not found"}
 
+# Add to your main.py or api_server.py
+
+@app.get("/notifications/debug/fixture/{fixture_id}")
+async def debug_fixture_notifications(fixture_id: int):
+    """Debug endpoint to check which devices have notifications enabled for a fixture"""
+    conn = get_db()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+    
+    # Get fixture details
+    cursor.execute("""
+        SELECT fixture_id, home_team, away_team, match_datetime, status
+        FROM pro_tips WHERE fixture_id = %s
+    """, (fixture_id,))
+    
+    fixture = cursor.fetchone()
+    
+    # Get devices with this fixture enabled
+    cursor.execute("""
+        SELECT d.device_id, d.device_model, dfn.enabled, dfn.created_at, dfn.updated_at
+        FROM devices d
+        JOIN device_fixture_notifications dfn ON d.device_id = dfn.device_id
+        WHERE dfn.fixture_id = %s AND dfn.enabled = TRUE
+    """, (fixture_id,))
+    
+    enabled_devices = cursor.fetchall()
+    
+    cursor.close()
+    release_db(conn)
+    
+    return {
+        "fixture": fixture,
+        "devices_with_notification_enabled": len(enabled_devices),
+        "devices": enabled_devices
+    }
 # ────────────────────────────────────────────────
 # FIXTURES
 # ────────────────────────────────────────────────
@@ -617,7 +651,7 @@ def get_vip_updates(fixture_ids: List[int]):
         cursor.close()
         release_db(conn)
 
-        
+
 
 @app.get("/fixtures/{fixture_date}", response_model=List[FixtureOut])
 def get_fixtures(fixture_date: str):

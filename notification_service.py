@@ -3,7 +3,7 @@ import httpx
 from datetime import datetime, timedelta
 from typing import List, Dict
 from db_utils import get_db, release_db
-import kbt_load_env  # Import from db_utils instead of api_server
+import kbt_load_env
 
 class MatchNotificationService:
     def __init__(self):
@@ -12,11 +12,16 @@ class MatchNotificationService:
         self.api_url = "https://api.onesignal.com/notifications"
     
     async def send_match_reminder(self, fixture: Dict):
-        """Send reminder that match is starting soon"""
-        devices = await self.get_all_devices()
+        """Send reminder ONLY to devices that enabled notifications for this fixture"""
+        
+        # ✅ Get devices that have specifically enabled this fixture
+        devices = await self.get_devices_for_fixture(fixture['fixture_id'])
+        
+        print(f"📱 Devices found for fixture {fixture['fixture_id']}: {len(devices)}")
+        print(f"📱 Device IDs: {devices}")
         
         if not devices:
-            print("No devices registered for notifications")
+            print(f"❌ No devices with notifications enabled for fixture {fixture['fixture_id']}")
             return
         
         match_time = fixture['match_datetime']
@@ -33,7 +38,7 @@ class MatchNotificationService:
             "include_player_ids": devices,
             "headings": {"en": f"⚽ Match Starting Soon!"},
             "contents": {
-                "en": f"🔮 {home_team} vs {away_team} starts in {minutes_until} minutes!\n\nPrediction: {prediction}\n\nDon't miss the action! 📺"
+                "en": f"🔮 {home_team} vs {away_team} starts in {minutes_until} minutes!\n\nPrediction: {prediction}"
             },
             "data": {
                 "type": "match_reminder",
@@ -58,16 +63,20 @@ class MatchNotificationService:
                 json=notification_data
             )
             
+            print(f"📬 OneSignal Response: {response.status_code} - {response.text}")
+            
             await self.log_reminder_sent(fixture['fixture_id'])
             print(f"Reminder sent for fixture {fixture['fixture_id']}")
             return response.json()
     
     async def send_prediction_result(self, fixture: Dict):
-        """Send notification about prediction result after match ends"""
-        devices = await self.get_all_devices()
+        """Send notification ONLY to devices that enabled notifications for this fixture"""
+        
+        # ✅ Get devices that have specifically enabled this fixture
+        devices = await self.get_devices_for_fixture(fixture['fixture_id'])
         
         if not devices:
-            print("No devices registered for notifications")
+            print(f"❌ No devices with notifications enabled for fixture {fixture['fixture_id']}")
             return
         
         home_team = fixture['home_team']
@@ -81,10 +90,10 @@ class MatchNotificationService:
         
         if is_correct:
             title = "🎯 Prediction Correct!"
-            message = f"✅ {home_team} {home_score}-{away_score} {away_team}\n\nOur prediction was spot on! {prediction}\n\nShare your excitement! 🏆"
+            message = f"✅ {home_team} {home_score}-{away_score} {away_team}\n\nOur prediction was spot on! {prediction}"
         else:
             title = "📊 Match Result"
-            message = f"📝 {home_team} {home_score}-{away_score} {away_team}\n\nPrediction: {prediction}\n\nBetter luck next time! 🔮"
+            message = f"📝 {home_team} {home_score}-{away_score} {away_team}\n\nPrediction: {prediction}"
         
         notification_data = {
             "app_id": self.onesignal_app_id,
@@ -115,12 +124,39 @@ class MatchNotificationService:
                 json=notification_data
             )
             
+            print(f"📬 OneSignal Response: {response.status_code} - {response.text}")
+            
             await self.log_result_sent(fixture['fixture_id'])
             print(f"Result notification sent for fixture {fixture['fixture_id']}")
             return response.json()
     
+    # ✅ NEW: Get devices that have enabled notifications for a specific fixture
+    async def get_devices_for_fixture(self, fixture_id: int) -> List[str]:
+        """Get devices that have notifications enabled for this specific fixture"""
+        conn = get_db()
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute("""
+                SELECT d.onesignal_player_id 
+                FROM devices d
+                INNER JOIN device_fixture_notifications dfn 
+                    ON d.device_id = dfn.device_id 
+                WHERE dfn.fixture_id = %s 
+                AND dfn.enabled = TRUE 
+                AND d.is_active = TRUE
+            """, (fixture_id,))
+            
+            devices = [row[0] for row in cursor.fetchall()]
+            print(f"🔍 Found {len(devices)} devices with notifications enabled for fixture {fixture_id}")
+            return devices
+        finally:
+            cursor.close()
+            release_db(conn)
+    
+    # ✅ Keep this for other notifications that need to go to all devices
     async def get_all_devices(self) -> List[str]:
-        """Get all registered device OneSignal IDs"""
+        """Get all registered device OneSignal IDs (for non-fixture specific notifications)"""
         conn = get_db()
         cursor = conn.cursor()
         

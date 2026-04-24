@@ -12,7 +12,7 @@ class MatchNotificationService:
         self.onesignal_app_id = kbt_load_env.onesignal_app_id
         
         # ✅ TEMPORARY: Hardcode for testing
-        self.onesignal_api_key = "os_v2_app_bag6ymcddvegfhpotuu5nquhlewloahonmruj3u6i4db26hybyls4o2ypgqpfpfpk24qh6v6d3qrtsbxezksjn3sukuiobssihzwwmi"
+        self.onesignal_api_key = "os_v2_app_bag6ymcddvegfhpotuu5nquhlgxljak6q2ruqiuasy57mhmk5ld5yr6oy3ks2qhajcw4qfnzeqfv6v4q4xzpf5tbeoj45mfdqxsxiqq"
         
         self.api_url = "https://api.onesignal.com/notifications"
         

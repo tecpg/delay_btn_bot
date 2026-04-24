@@ -9,7 +9,7 @@ class MatchNotificationService:
     def __init__(self):
             self.onesignal_app_id = kbt_load_env.onesignal_app_id
             self.onesignal_api_key = kbt_load_env.onesignal_api_key
-            self.api_url = "https://api.onesignal.com/notifications"
+            self.api_url = "https://onesignal.com/api/v1/notifications"
             
             # Debug prints
             print(f"📱 App ID: {self.onesignal_app_id}")
@@ -54,7 +54,7 @@ class MatchNotificationService:
                 response = await client.post(
                     self.api_url,
                     headers={
-                        "Authorization": f"Key {self.onesignal_api_key}",
+                        "Authorization": f"Basic {self.onesignal_api_key}",
                         "Content-Type": "application/json"
                     },
                     json=notification_data

@@ -9,7 +9,7 @@ class MatchNotificationService:
 # notification_service.py
 
     def __init__(self):
-        self.onesignal_app_id = kbt_load_env.onesignal_app_id
+        self.onesignal_app_id = "e27c2e77-bbd1-4408-b472-a5280d2e5eb3"
         
         # ✅ TEMPORARY: Hardcode for testing
         self.onesignal_api_key = "os_v2_app_bag6ymcddvegfhpotuu5nquhlgxljak6q2ruqiuasy57mhmk5ld5yr6oy3ks2qhajcw4qfnzeqfv6v4q4xzpf5tbeoj45mfdqxsxiqq"

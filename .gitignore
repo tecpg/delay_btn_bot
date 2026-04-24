@@ -1,0 +1,7 @@
+# .gitignore
+
+# Environment variables (CRITICAL - never commit!)
+.env
+.env.local
+.env.production
+.env.*.local

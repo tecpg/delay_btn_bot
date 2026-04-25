@@ -1,7 +1,7 @@
 import httpx
 import redis
 from datetime import datetime
-#from apscheduler.schedulers.blocking import BlockingScheduler
+from apscheduler.schedulers.blocking import BlockingScheduler
 from psycopg2.extras import RealDictCursor
 from psycopg2.pool import SimpleConnectionPool
 import kbt_load_env

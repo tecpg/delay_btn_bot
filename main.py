@@ -80,7 +80,7 @@ def refresh_live_predictions():
 
         rows = cursor.fetchall()
 
-        rows = cursor.fetchall()
+      
 
         # DEBUG: Check for fixture 1391834 specifically
         for row in rows:

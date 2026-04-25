@@ -9,7 +9,7 @@ class MatchNotificationService:
     def __init__(self):
             self.onesignal_app_id = kbt_load_env.onesignal_app_id
             self.onesignal_api_key = kbt_load_env.onesignal_api_key
-            self.api_url = "https://onesignal.com/api/v1/notifications"
+            self.api_url = "https://api.onesignal.com/notifications"
             
             # Debug prints
             print(f"📱 App ID: {self.onesignal_app_id}")
@@ -37,24 +37,25 @@ class MatchNotificationService:
             
             # Build notification
             notification_data = {
-                "app_id": self.onesignal_app_id,
-                "include_player_ids": devices,
-                "headings": {"en": "⚽ Match Starting Soon!"},
-                "contents": {
-                    "en": f"🔮 {fixture['home_team']} vs {fixture['away_team']} starts in {minutes_until} minutes!\n\nPrediction: {fixture.get('prediction', 'N/A')}"
-                },
-                "data": {
-                    "type": "match_reminder",
-                    "fixture_id": fixture['fixture_id']
+                    "app_id": self.onesignal_app_id,
+                    "include_player_ids": devices,
+                    "target_channel": "push",  # ✅ ADD THIS
+                    "headings": {"en": "⚽ Match Starting Soon!"},
+                    "contents": {
+                        "en": f"🔮 {fixture['home_team']} vs {fixture['away_team']} starts in {minutes_until} minutes!\n\nPrediction: {fixture.get('prediction', 'N/A')}"
+                    },
+                    "data": {
+                        "type": "match_reminder",
+                        "fixture_id": fixture['fixture_id']
+                    }
                 }
-            }
             
             # Send
             async with httpx.AsyncClient() as client:
                 response = await client.post(
                     self.api_url,
                     headers={
-                        "Authorization": f"Basic {self.onesignal_api_key}",
+                        "Authorization": f"Key {self.onesignal_api_key}",
                         "Content-Type": "application/json"
                     },
                     json=notification_data
@@ -100,6 +101,7 @@ class MatchNotificationService:
         notification_data = {
             "app_id": self.onesignal_app_id,
             "include_player_ids": devices,
+            "target_channel": "push",  # ✅ ADD THIS
             "headings": {"en": title},
             "contents": {"en": message},
             "data": {
@@ -112,16 +114,14 @@ class MatchNotificationService:
                 "prediction": prediction,
                 "was_correct": is_correct
             },
-            "url": f"yourapp://fixture/{fixture['fixture_id']}",
-            # ✅ Remove android_channel_id for iOS testing
-            # "android_channel_id": "match_results"
-        }
+            "url": f"yourapp://fixture/{fixture['fixture_id']}"
+}
         
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 self.api_url,
                 headers={
-                    "Authorization": f"Basic {self.onesignal_api_key}",  # ✅ CORRECT,
+                    "Authorization": f"Key {self.onesignal_api_key}",
                     "Content-Type": "application/json"
                 },
                 json=notification_data

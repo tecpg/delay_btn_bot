@@ -146,10 +146,14 @@ class FixtureOut(BaseModel):
             return None    
 
 class NotificationPreference(BaseModel):
-    device_id: str
+    user_id: str
     fixture_id: int
     enabled: bool
 
+class DeviceRegistration(BaseModel):
+    user_id: str
+    device_model: str
+    app_version: str
 # ────────────────────────────────────────────────
 # DB POOL (🔥 PERFORMANCE BOOST)
 # ────────────────────────────────────────────────
@@ -318,86 +322,80 @@ def process_form_data(fixtures_data, current_team_name):
 # NOTIFICATION
 # ────────────────────────────────────────────────
 
-
 @app.post("/notifications/enable-fixture")
 async def enable_fixture_notification(pref: NotificationPreference):
-    """Enable/disable notifications for a specific fixture per device"""
     conn = get_db()
     cursor = conn.cursor()
-    
+
     try:
         if pref.enabled:
-            # Add to notification preferences
             cursor.execute("""
-                INSERT INTO device_fixture_notifications (device_id, fixture_id, enabled, created_at)
+                INSERT INTO device_fixture_notifications (user_id, fixture_id, enabled, created_at)
                 VALUES (%s, %s, TRUE, NOW())
-                ON CONFLICT (device_id, fixture_id) 
+                ON CONFLICT (user_id, fixture_id)
                 DO UPDATE SET enabled = TRUE, updated_at = NOW()
-            """, (pref.device_id, pref.fixture_id))
+            """, (pref.user_id, pref.fixture_id))
         else:
-            # Disable or remove
             cursor.execute("""
-                UPDATE device_fixture_notifications 
+                UPDATE device_fixture_notifications
                 SET enabled = FALSE, updated_at = NOW()
-                WHERE device_id = %s AND fixture_id = %s
-            """, (pref.device_id, pref.fixture_id))
-        
+                WHERE user_id = %s AND fixture_id = %s
+            """, (pref.user_id, pref.fixture_id))
+
         conn.commit()
         return {"status": "success"}
+
     finally:
         cursor.close()
         release_db(conn)
 
-@app.get("/notifications/fixture-status/{device_id}/{fixture_id}")
-async def get_fixture_notification_status(device_id: str, fixture_id: int):
-    """Get notification status for a fixture"""
+@app.get("/notifications/fixture-status/{user_id}/{fixture_id}")
+async def get_fixture_notification_status(user_id: str, fixture_id: int):
     conn = get_db()
     cursor = conn.cursor()
-    
+
     cursor.execute("""
-        SELECT enabled FROM device_fixture_notifications 
-        WHERE device_id = %s AND fixture_id = %s
-    """, (device_id, fixture_id))
-    
+        SELECT enabled FROM device_fixture_notifications
+        WHERE user_id = %s AND fixture_id = %s
+    """, (user_id, fixture_id))
+
     result = cursor.fetchone()
+
     cursor.close()
     release_db(conn)
-    
+
     return {"enabled": result[0] if result else False}
 
 
 @app.post("/device/register")
 async def register_device(registration: DeviceRegistration):
-    """Register device for notifications"""
-    await notification_service.register_device(
-        registration.onesignal_player_id,
+    await notification_service.register_user(
+        registration.user_id,
         {
             'device_model': registration.device_model,
             'app_version': registration.app_version
         }
     )
-    return {"status": "registered", "message": "Device registered for notifications"}
+    return {"status": "registered"}
+
 
 @app.get("/device/status")
-async def get_device_status(device_id: str):
-    """Check if device is registered"""
+async def get_device_status(user_id: str):
     conn = get_db()
     cursor = conn.cursor()
-    
+
     cursor.execute("""
-        SELECT is_active, last_active 
-        FROM devices 
-        WHERE device_id = %s
-    """, (device_id,))
-    
+        SELECT last_active
+        FROM users
+        WHERE user_id = %s
+    """, (user_id,))
+
     result = cursor.fetchone()
+
     cursor.close()
     release_db(conn)
-    
-    if result:
-        return {"registered": True, "is_active": result[0], "last_active": result[1]}
-    return {"registered": False}
 
+    return {"registered": bool(result)}
 # Manual trigger endpoints for testing
 @app.post("/notifications/test-reminder/{fixture_id}")
 async def test_reminder(fixture_id: int):
@@ -419,35 +417,31 @@ async def test_reminder(fixture_id: int):
 
 @app.get("/notifications/debug/fixture/{fixture_id}")
 async def debug_fixture_notifications(fixture_id: int):
-    """Debug endpoint to check which devices have notifications enabled for a fixture"""
     conn = get_db()
     cursor = conn.cursor(cursor_factory=RealDictCursor)
-    
-    # Get fixture details
+
     cursor.execute("""
         SELECT fixture_id, home_team, away_team, match_datetime, status
         FROM pro_tips WHERE fixture_id = %s
     """, (fixture_id,))
-    
+
     fixture = cursor.fetchone()
-    
-    # Get devices with this fixture enabled
+
     cursor.execute("""
-        SELECT d.device_id, d.device_model, dfn.enabled, dfn.created_at, dfn.updated_at
-        FROM devices d
-        JOIN device_fixture_notifications dfn ON d.device_id = dfn.device_id
-        WHERE dfn.fixture_id = %s AND dfn.enabled = TRUE
+        SELECT user_id, enabled, created_at, updated_at
+        FROM device_fixture_notifications
+        WHERE fixture_id = %s AND enabled = TRUE
     """, (fixture_id,))
-    
-    enabled_devices = cursor.fetchall()
-    
+
+    users = cursor.fetchall()
+
     cursor.close()
     release_db(conn)
-    
+
     return {
         "fixture": fixture,
-        "devices_with_notification_enabled": len(enabled_devices),
-        "devices": enabled_devices
+        "users_enabled": len(users),
+        "users": users
     }
 # ────────────────────────────────────────────────
 # FIXTURES

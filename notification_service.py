@@ -1,270 +1,187 @@
 # notification_service.py
 import httpx
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import List, Dict
 from db_utils import get_db, release_db
 import kbt_load_env
 
+
 class MatchNotificationService:
     def __init__(self):
-            self.onesignal_app_id = kbt_load_env.onesignal_app_id
-            self.onesignal_api_key = kbt_load_env.onesignal_api_key
-            self.api_url = "https://api.onesignal.com/notifications"
-            
-            # Debug prints
-            print(f"📱 App ID: {self.onesignal_app_id}")
-            print(f"🔑 API Key exists: {bool(self.onesignal_api_key)}")
-            if self.onesignal_api_key:
-                print(f"🔑 Key prefix: {self.onesignal_api_key[:15]}...")
-            else:
-                print("❌ CRITICAL: API Key not loaded! Check your .env file or Railway variables.")
+        self.onesignal_app_id = kbt_load_env.onesignal_app_id
+        self.onesignal_api_key = kbt_load_env.onesignal_api_key
+        self.api_url = "https://api.onesignal.com/notifications"
+
+        print(f"📱 App ID: {self.onesignal_app_id}")
+        print(f"🔑 API Key exists: {bool(self.onesignal_api_key)}")
+
+    # ========================= SEND REMINDER =========================
     async def send_match_reminder(self, fixture: Dict):
-        """Send reminder that match is starting soon"""
         try:
-            # Get devices that enabled this fixture
-            devices = await self.get_devices_for_fixture(fixture['fixture_id'])
-            
-            if not devices:
-                print(f"❌ No devices with notifications enabled for fixture {fixture['fixture_id']}")
+            users = await self.get_users_for_fixture(fixture['fixture_id'])
+
+            if not users:
+                print(f"❌ No users for fixture {fixture['fixture_id']}")
                 return
-            
-            # Calculate minutes until match
+
             match_time = fixture['match_datetime']
             if isinstance(match_time, str):
                 match_time = datetime.fromisoformat(match_time)
-            
-            minutes_until = int((match_time - datetime.now()).total_seconds() / 60)
-            
-            # Build notification
-            notification_data = {
-                    "app_id": self.onesignal_app_id,
-                    "include_player_ids": devices,
-                    "target_channel": "push",  # ✅ ADD THIS
-                    "headings": {"en": "⚽ Match Starting Soon!"},
-                    "contents": {
-                        "en": f"🔮 {fixture['home_team']} vs {fixture['away_team']} starts in {minutes_until} minutes!\n\nPrediction: {fixture.get('prediction', 'N/A')}"
-                    },
-                    "data": {
-                        "type": "match_reminder",
-                        "fixture_id": fixture['fixture_id']
-                    }
-                }
-            
-            # Send
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    self.api_url,
-                    headers={
-                        "Authorization": f"Key {self.onesignal_api_key}",
-                        "Content-Type": "application/json"
-                    },
-                    json=notification_data
-                )
-                
-                print(f"📬 OneSignal: {response.status_code} - {response.text}")
-                
-                if response.status_code == 200:
-                    await self.log_reminder_sent(fixture['fixture_id'])
-                    return response.json()
-                else:
-                    print(f"❌ OneSignal error: {response.text}")
-                    return None
-                    
-        except Exception as e:
-            print(f"❌ Error sending reminder: {e}")
-            return None
 
+            minutes_until = int((match_time - datetime.now()).total_seconds() / 60)
+
+            payload = {
+                "app_id": self.onesignal_app_id,
+                "include_external_user_ids": users,  # ✅ FIXED
+                "target_channel": "push",
+                "headings": {"en": "⚽ Match Starting Soon!"},
+                "contents": {
+                    "en": f"{fixture['home_team']} vs {fixture['away_team']} starts in {minutes_until} mins"
+                },
+                "data": {
+                    "type": "match_reminder",
+                    "fixture_id": fixture['fixture_id']
+                }
+            }
+
+            await self._send(payload)
+
+            await self.log_reminder_sent(fixture['fixture_id'])
+
+        except Exception as e:
+            print(f"❌ Reminder error: {e}")
+
+    # ========================= SEND RESULT =========================
     async def send_prediction_result(self, fixture: Dict):
-        """Send notification ONLY to devices that enabled notifications for this fixture"""
-        
-        devices = await self.get_devices_for_fixture(fixture['fixture_id'])
-        
-        if not devices:
-            print(f"❌ No devices with notifications enabled for fixture {fixture['fixture_id']}")
+        users = await self.get_users_for_fixture(fixture['fixture_id'])
+
+        if not users:
             return
-        
-        home_team = fixture['home_team']
-        away_team = fixture['away_team']
-        home_score = fixture.get('home_score', 0)
-        away_score = fixture.get('away_score', 0)
-        prediction = fixture.get('prediction', '')
-        
-        is_correct = self.is_prediction_correct(prediction, home_score, away_score)
-        
-        if is_correct:
-            title = "🎯 Prediction Correct!"
-            message = f"✅ {home_team} {home_score}-{away_score} {away_team}\n\nOur prediction was spot on! {prediction}"
-        else:
-            title = "📊 Match Result"
-            message = f"📝 {home_team} {home_score}-{away_score} {away_team}\n\nPrediction: {prediction}"
-        
-        notification_data = {
+
+        home = fixture['home_team']
+        away = fixture['away_team']
+        hs = fixture.get('home_score', 0)
+        aw = fixture.get('away_score', 0)
+        pred = fixture.get('prediction', '')
+
+        correct = self.is_prediction_correct(pred, hs, aw)
+
+        title = "🎯 Prediction Correct!" if correct else "📊 Match Result"
+        message = f"{home} {hs}-{aw} {away}\nPrediction: {pred}"
+
+        payload = {
             "app_id": self.onesignal_app_id,
-            "include_player_ids": devices,
-            "target_channel": "push",  # ✅ ADD THIS
+            "include_external_user_ids": users,  # ✅ FIXED
+            "target_channel": "push",
             "headings": {"en": title},
             "contents": {"en": message},
             "data": {
-                "type": "prediction_result",
-                "fixture_id": fixture['fixture_id'],
-                "home_team": home_team,
-                "away_team": away_team,
-                "home_score": home_score,
-                "away_score": away_score,
-                "prediction": prediction,
-                "was_correct": is_correct
-            },
-            "url": f"yourapp://fixture/{fixture['fixture_id']}"
-}
-        
+                "fixture_id": fixture['fixture_id']
+            }
+        }
+
+        await self._send(payload)
+        await self.log_result_sent(fixture['fixture_id'])
+
+    # ========================= SEND CORE =========================
+    async def _send(self, payload: Dict):
         async with httpx.AsyncClient() as client:
-            response = await client.post(
+            res = await client.post(
                 self.api_url,
                 headers={
                     "Authorization": f"Key {self.onesignal_api_key}",
                     "Content-Type": "application/json"
                 },
-                json=notification_data
+                json=payload
             )
-            
-            print(f"📬 OneSignal Response: {response.status_code} - {response.text}")
-            
-            if response.status_code == 200:
-                await self.log_result_sent(fixture['fixture_id'])
-                print(f"✅ Result notification sent for fixture {fixture['fixture_id']}")
-            else:
-                print(f"❌ Failed to send result for fixture {fixture['fixture_id']}")
-            
-            return response.json()
 
-    # ✅ NEW: Get devices that have enabled notifications for a specific fixture
-    async def get_devices_for_fixture(self, fixture_id: int) -> List[str]:
-        """Get devices that have notifications enabled for this specific fixture"""
+            print("📬", res.status_code, res.text)
+
+            if res.status_code not in [200, 201]:
+                print("❌ Notification failed")
+
+    # ========================= USERS =========================
+    async def get_users_for_fixture(self, fixture_id: int) -> List[str]:
         conn = get_db()
         cursor = conn.cursor()
-        
+
         try:
             cursor.execute("""
-                SELECT d.onesignal_player_id 
-                FROM devices d
-                INNER JOIN device_fixture_notifications dfn 
-                    ON d.device_id = dfn.device_id 
-                WHERE dfn.fixture_id = %s 
-                AND dfn.enabled = TRUE 
-                AND d.is_active = TRUE
+                SELECT user_id
+                FROM device_fixture_notifications
+                WHERE fixture_id = %s
+                AND enabled = TRUE
             """, (fixture_id,))
-            
-            devices = [row[0] for row in cursor.fetchall()]
-            print(f"🔍 Found {len(devices)} devices with notifications enabled for fixture {fixture_id}")
-            return devices
+
+            users = [row[0] for row in cursor.fetchall()]
+            print(f"👤 Found {len(users)} users for fixture {fixture_id}")
+            return users
+
         finally:
             cursor.close()
             release_db(conn)
-    
-    # ✅ Keep this for other notifications that need to go to all devices
-    async def get_all_devices(self) -> List[str]:
-        """Get all registered device OneSignal IDs (for non-fixture specific notifications)"""
+
+    # ========================= REGISTER =========================
+    async def register_user(self, user_id: str, device_info: Dict):
         conn = get_db()
         cursor = conn.cursor()
-        
+
         try:
             cursor.execute("""
-                SELECT onesignal_player_id 
-                FROM devices 
-                WHERE is_active = TRUE
-            """)
-            
-            devices = [row[0] for row in cursor.fetchall()]
-            return devices
-        finally:
-            cursor.close()
-            release_db(conn)
-    
-    async def register_device(self, onesignal_player_id: str, device_info: Dict):
-        """Register a device"""
-        conn = get_db()
-        cursor = conn.cursor()
-        
-        try:
-            cursor.execute("""
-                INSERT INTO devices (device_id, onesignal_player_id, device_model, app_version, last_active)
-                VALUES (%s, %s, %s, %s, NOW())
-                ON CONFLICT (device_id) 
-                DO UPDATE SET 
-                    last_active = NOW(),
-                    device_model = EXCLUDED.device_model,
-                    app_version = EXCLUDED.app_version,
-                    is_active = TRUE
+                INSERT INTO users (user_id, device_model, app_version, last_active)
+                VALUES (%s, %s, %s, NOW())
+                ON CONFLICT (user_id)
+                DO UPDATE SET last_active = NOW()
             """, (
-                onesignal_player_id,
-                onesignal_player_id,
-                device_info.get('device_model', 'Unknown'),
-                device_info.get('app_version', '1.0.0')
+                user_id,
+                device_info.get('device_model'),
+                device_info.get('app_version')
             ))
-            
+
             conn.commit()
-            print(f"Device registered: {onesignal_player_id}")
+            print(f"✅ User registered: {user_id}")
+
         finally:
             cursor.close()
             release_db(conn)
-    
+
+    # ========================= LOGGING =========================
     async def log_reminder_sent(self, fixture_id: int):
-        """Log that reminder was sent for this fixture"""
         conn = get_db()
         cursor = conn.cursor()
-        
+
         try:
             cursor.execute("""
-                INSERT INTO notification_log (fixture_id, reminder_sent, reminder_sent_at)
-                VALUES (%s, TRUE, NOW())
+                INSERT INTO notification_log (fixture_id, reminder_sent)
+                VALUES (%s, TRUE)
                 ON CONFLICT (fixture_id)
-                DO UPDATE SET reminder_sent = TRUE, reminder_sent_at = NOW()
+                DO UPDATE SET reminder_sent = TRUE
             """, (fixture_id,))
-            
             conn.commit()
         finally:
             cursor.close()
             release_db(conn)
-    
+
     async def log_result_sent(self, fixture_id: int):
-        """Log that result notification was sent for this fixture"""
         conn = get_db()
         cursor = conn.cursor()
-        
+
         try:
             cursor.execute("""
-                INSERT INTO notification_log (fixture_id, result_notification_sent, result_notification_sent_at)
-                VALUES (%s, TRUE, NOW())
+                INSERT INTO notification_log (fixture_id, result_notification_sent)
+                VALUES (%s, TRUE)
                 ON CONFLICT (fixture_id)
-                DO UPDATE SET result_notification_sent = TRUE, result_notification_sent_at = NOW()
+                DO UPDATE SET result_notification_sent = TRUE
             """, (fixture_id,))
-            
             conn.commit()
         finally:
             cursor.close()
             release_db(conn)
-    
-    def is_prediction_correct(self, prediction: str, home_score: int, away_score: int) -> bool:
-        """Check if prediction matches actual result"""
-        prediction_lower = prediction.lower()
-        
-        if home_score > away_score:
-            actual = "home"
-        elif home_score == away_score:
-            actual = "draw"
-        else:
-            actual = "away"
-        
-        if actual == "home" and ("home" in prediction_lower or "win" in prediction_lower):
-            return True
-        elif actual == "away" and "away" in prediction_lower:
-            return True
-        elif actual == "draw" and "draw" in prediction_lower:
-            return True
-        
-        return False
-    
 
-
-
-
+    # ========================= LOGIC =========================
+    def is_prediction_correct(self, prediction, hs, aw):
+        if hs > aw:
+            return "home" in prediction.lower()
+        elif hs < aw:
+            return "away" in prediction.lower()
+        return "draw" in prediction.lower()

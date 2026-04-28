@@ -21,10 +21,10 @@ onesignal_app_id = os.getenv("ONESIGNAL_APP_ID")
 onesignal_api_key = os.getenv("ONESIGNAL_API_KEY")
 
 # Debug: Check if loaded (don't print full key in production)
-print(f"🔑 oneSignal_app_id loaded: {bool(onesignal_app_id)}")
-print(f"🔑 oneSignal_app_key loaded: {bool(onesignal_api_key)}")
-if onesignal_api_key:
-    print(f"🔑 Key starts with: {onesignal_api_key[:15]}...")
+# print(f"🔑 oneSignal_app_id loaded: {bool(onesignal_app_id)}")
+# print(f"🔑 oneSignal_app_key loaded: {bool(onesignal_api_key)}")
+# if onesignal_api_key:
+#     print(f"🔑 Key starts with: {onesignal_api_key[:15]}...")
 
 
 client_id = os.environ['client_id']

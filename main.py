@@ -34,6 +34,79 @@ def release_db(conn):
 # Initialize notification service
 notification_service = MatchNotificationService()
 
+
+# ─────────────────────────────
+# ALTERNATIVE: Direct import and run (if scripts are modules)
+# ─────────────────────────────
+def daily_pipeline():
+    """Alternative: Import and run scripts directly as modules"""
+    print("=" * 60)
+    print(f"🕐 Daily Pipeline Started at: {datetime.now()}")
+    print("=" * 60)
+    
+    results = {}
+    
+    try:
+        # Import your modules
+        import api_football_call
+        import api_football_yesterday_call
+        import get_pro_tip_yesterday
+        import get_pro_tips
+        import post_pro_tips
+        import update_pro_tip_results
+        
+        # Step 1: Get pro tips for today
+        print("\n📋 STEP 1: Getting today's pro tips...")
+        get_pro_tips.main()
+        results['get_pro_tips'] = True
+        print("   ✅ Completed: get_pro_tips")
+        
+        # Step 2: Get pro tips for yesterday
+        print("\n📋 STEP 2: Getting yesterday's pro tips...")
+        get_pro_tip_yesterday.main()
+        results['get_pro_tip_yesterday'] = True
+        print("   ✅ Completed: get_pro_tip_yesterday")
+        
+        # Step 3: Call API football for today
+        print("\n📋 STEP 3: Calling API football for today...")
+        api_football_call.main()
+        results['api_football_call'] = True
+        print("   ✅ Completed: api_football_call")
+        
+        # Step 4: Call API football for yesterday
+        print("\n📋 STEP 4: Calling API football for yesterday...")
+        api_football_yesterday_call.main()
+        results['api_football_yesterday_call'] = True
+        print("   ✅ Completed: api_football_yesterday_call")
+        
+        # Step 5: Post pro tips
+        print("\n📋 STEP 5: Posting pro tips...")
+        post_pro_tips.main()
+        results['post_pro_tips'] = True
+        print("   ✅ Completed: post_pro_tips")
+        
+        # Step 6: Update results
+        print("\n📋 STEP 6: Updating results...")
+        update_pro_tip_results.main()
+        results['update_pro_tip_results'] = True
+        print("   ✅ Completed: update_pro_tip_results")
+        
+    except ImportError as e:
+        print(f"❌ Import error: {e}")
+        print("   Make sure all script files are in the same directory")
+    except Exception as e:
+        print(f"❌ Pipeline error: {e}")
+    
+    # Summary
+    print("\n" + "=" * 60)
+    print("📊 PIPELINE SUMMARY")
+    print("=" * 60)
+    success_count = sum(1 for success in results.values() if success)
+    total_count = len(results)
+    print(f"   Success: {success_count}/{total_count} scripts")
+    print("=" * 60)
+
+
 # ─────────────────────────────
 # JOB
 # ─────────────────────────────
@@ -223,5 +296,20 @@ scheduler.add_job(
     coalesce=True         # 🔥 skip missed runs
 )
 
+# Job 2: Run daily at 1:30 AM for pipeline tasks
+scheduler.add_job(
+    daily_pipeline,
+    'cron',
+    hour=1,
+    minute=30,
+    max_instances=1,
+    coalesce=True
+)
+
 print("🚀 Worker started...")
+print("   - Live updates every 5 minutes")
+print("   - Daily pipeline at 1:30 AM")
+print("   - Pipeline scripts: get_pro_tips, api_football_call, post_pro_tips, etc.")
+
 scheduler.start()
+print("🚀 Worker started...")

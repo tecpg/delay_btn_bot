@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from typing import List, Optional, Dict, Any
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, field_validator
 import psycopg2
 from psycopg2.extras import RealDictCursor
@@ -647,6 +648,9 @@ def get_vip_updates(fixture_ids: List[int]):
 
 
 
+from fastapi.responses import JSONResponse
+import json
+
 @app.get("/fixtures/{fixture_date}", response_model=List[FixtureOut])
 def get_fixtures(fixture_date: str):
 
@@ -655,8 +659,15 @@ def get_fixtures(fixture_date: str):
 
     cache_key = f"fixtures:{fixture_date}"
     cached = get_cache(cache_key)
+
     if cached:
-        return cached
+        if isinstance(cached, str):
+            cached = json.loads(cached)
+
+        return JSONResponse(
+            content=cached,
+            media_type="application/json; charset=utf-8"
+        )
 
     conn = get_db()
     cursor = conn.cursor(cursor_factory=RealDictCursor)
@@ -676,41 +687,35 @@ def get_fixtures(fixture_date: str):
         for r in rows:
             row = dict(r)
 
-            # ✅ HANDLE match_datetime (UTC ONLY)
             if row.get("match_datetime"):
                 dt = row["match_datetime"]
 
                 if dt.tzinfo is None:
                     dt = dt.replace(tzinfo=ZoneInfo("UTC"))
 
-                # 🔥 KEEP UTC ONLY (client will convert)
                 row["match_datetime"] = dt.isoformat()
-
-                # optional fallback display
                 row["match_time"] = dt.strftime("%H:%M")
                 row["date"] = dt.strftime("%Y-%m-%d")
-
             else:
                 row["match_time"] = None
                 row["date"] = fixture_date
 
-            # ✅ serialize last_updated
             if row.get("last_updated"):
                 row["last_updated"] = row["last_updated"].isoformat()
 
             result.append(row)
 
         ttl = get_ttl(date.fromisoformat(fixture_date))
-
-        # ✅ cache CORRECT data
         set_cache(cache_key, result, ttl)
 
-        return result
+        return JSONResponse(
+            content=result,
+            media_type="application/json; charset=utf-8"
+        )
 
     finally:
         cursor.close()
         release_db(conn)
-
 
 # ────────────────────────────────────────────────
 # FIXTURE DETAILS

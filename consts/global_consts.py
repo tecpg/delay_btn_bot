@@ -101,8 +101,14 @@ additional_headers = {
     "Connection": "keep-alive"
 }
 # Select a random header from the list
+import random  # make sure this is at top
+
 headers = random.choice(headers_list)
-MY_HEARDER = headers.update(additional_headers)
+
+# Merge properly
+headers.update(additional_headers)
+
+MY_HEARDER = headers  # ✅ NOW it's a valid dict
  
 
 #cvs file names

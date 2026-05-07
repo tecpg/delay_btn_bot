@@ -1,8 +1,7 @@
 import csv
 import json
-import mysql.connector
 import redis
-import kbt_funtions
+
 from consts import global_consts as gc
 import kbt_load_env
 
@@ -14,7 +13,7 @@ DB_FIXTURES_CSV = gc.PRO_RESULTS_CSV
 MATCHED_CSV = gc.MATCHED_RESULTS_CSV
 
 # ------------------------
-# MySQL connection
+# DB connection
 # ------------------------
 def get_db():
     return psycopg2.connect(
@@ -82,7 +81,7 @@ REDIS_URL = kbt_load_env.redis_url # or wherever your Redis URL is stored
 redis_client = redis.from_url(REDIS_URL, decode_responses=True)
 
 # ------------------------
-# Bulk MySQL update
+# Bulk DB update
 # ------------------------
 def update_postgres_bulk(csv_file):
     try:

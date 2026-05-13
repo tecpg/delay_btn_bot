@@ -284,7 +284,7 @@ def insert_vip_tips(matched_data):
             key=lambda x: hashlib.md5(
                 (str(x["fixture_id"]) + str(today)).encode()
             ).hexdigest()
-        )[:3]
+        )[:6]
 
         values = [(p["fixture_id"], today) for p in picks]
 

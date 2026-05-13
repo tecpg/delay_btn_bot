@@ -990,6 +990,65 @@ async def get_fixture_details(fixture_id: int):
   
   
 
+
+
+
+
+
+# ────────────────────────────────────────────────
+# BOOKING CODES
+# ────────────────────────────────────────────────
+
+@app.get("/betcodes/today")
+def get_betcodes_today():
+    conn = get_db()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+    try:
+        cursor.execute("""
+            SELECT *
+            FROM booking_codes
+            WHERE post_date = CURRENT_DATE
+            ORDER BY post_time DESC
+        """)
+
+        rows = cursor.fetchall()
+
+        # optional: normalize datetime
+        for r in rows:
+            if r.get("post_time"):
+                r["post_time"] = str(r["post_time"])
+            if r.get("post_date"):
+                r["post_date"] = str(r["post_date"])
+
+        return rows
+
+    finally:
+        cursor.close()
+        release_db(conn)
+
+
+@app.get("/betcodes/today/grouped-sql")
+def get_betcodes_grouped_sql():
+    conn = get_db()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+    try:
+        cursor.execute("""
+            SELECT site, json_agg(b ORDER BY post_time DESC) AS data
+            FROM booking_codes b
+            WHERE post_date = CURRENT_DATE
+            GROUP BY site
+        """)
+
+        rows = cursor.fetchall()
+
+        return {r["site"]: r["data"] for r in rows}
+
+    finally:
+        cursor.close()
+        release_db(conn)
+
 # ────────────────────────────────────────────────
 # HEALTH
 # ────────────────────────────────────────────────

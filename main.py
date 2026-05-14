@@ -302,8 +302,8 @@ scheduler.add_job(
 scheduler.add_job(
     daily_pipeline,
     'cron',
-    hour=1,
-    minute=30,
+    hour=2,
+    minute=00,
     max_instances=1,
     coalesce=True
 )

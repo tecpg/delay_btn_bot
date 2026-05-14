@@ -318,7 +318,7 @@ def run():
         get_bet_codes(set_date)
         # Insert data into the database (pass the csv_filename)
         # Generate the CSV filename for the current date
-        csv_filename = f"bet_codes_{set_date}.csv"
+        csv_filename = "csv_files/betcodes.csv"
         connect_server(csv_filename)
     except Exception as e:
         logger.error(f"Error during the run: {e}")

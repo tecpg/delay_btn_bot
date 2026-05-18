@@ -126,7 +126,7 @@ def get_bet_codes():
                         "email": "support@bettingtipsnet.com",
                         "price": "premium" if float(odds) > 1000 else "free",
                         "post_time": post_time,
-                        "post_date": gc.PRESENT_DAY_YMD,
+                        "post_date": set_date,
                         "booking_code_id": kbt_funtions.get_betcode_uid(),
                         "slip_result_link": None,              # ✅ FIXED
                         "platform_logo_link": None,            # ✅ FIXED

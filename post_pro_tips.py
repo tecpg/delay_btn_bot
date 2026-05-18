@@ -257,6 +257,7 @@ def insert_vip_tips(matched_data):
 
     import hashlib
     from datetime import date
+    import random
 
     today = date.today()
 
@@ -278,13 +279,19 @@ def insert_vip_tips(matched_data):
             print("✅ VIP already exists for today")
             return
 
-        # 🔥 deterministic picks
+        # 🎲 Randomly pick VIP count from the list
+        vip_count = random.choice([2, 3, 4, 5, 6])
+        
+        # Ensure we don't try to pick more than available matches
+        vip_count = min(vip_count, len(matched_data))
+        
+        # 🔥 deterministic picks based on fixture_id and today
         picks = sorted(
             matched_data,
             key=lambda x: hashlib.md5(
                 (str(x["fixture_id"]) + str(today)).encode()
             ).hexdigest()
-        )[:6]
+        )[:vip_count]
 
         values = [(p["fixture_id"], today) for p in picks]
 
@@ -295,7 +302,7 @@ def insert_vip_tips(matched_data):
 
         conn.commit()
 
-        print(f"🔥 VIP PICKS GENERATED: {len(values)}")
+        print(f"🔥 VIP PICKS GENERATED: {len(values)} (selected random count: {vip_count} from [2,3,4,5,6])")
 
     except Exception as e:
         import traceback
@@ -306,7 +313,6 @@ def insert_vip_tips(matched_data):
     finally:
         cursor.close()
         conn.close()
-
 # ────────────────────────────────────────────────
 # MAIN
 # ────────────────────────────────────────────────

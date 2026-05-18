@@ -1,9 +1,12 @@
+import logging
 import httpx
+import pytz
 import redis
 from datetime import datetime
 from apscheduler.schedulers.blocking import BlockingScheduler
 from psycopg2.extras import RealDictCursor
 from psycopg2.pool import SimpleConnectionPool
+import get_betcodes
 import kbt_load_env
 import asyncio
 from notification_service import MatchNotificationService
@@ -18,6 +21,18 @@ redis_client = redis.from_url(
 
 BASE_URL = "https://v3.football.api-sports.io"
 HEADERS = {"x-apisports-key": kbt_load_env.api_football_key}
+
+# =========================
+LAGOS_TZ = pytz.timezone("Africa/Lagos")
+
+# =========================
+# LOGGING
+# =========================
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
 
 db_pool = SimpleConnectionPool(
     minconn=1,
@@ -285,10 +300,20 @@ def refresh_live_predictions():
         if conn:
             release_db(conn)
 
+
+def run_betcodes():
+    logging.info(f"🧾 Running get_betcodes at {datetime.now(LAGOS_TZ)}")
+    try:
+        get_betcodes.run()
+        logging.info("✅ get_betcodes completed")
+    except Exception as e:
+        logging.exception("❌ get_betcodes failed")
+
+
 # ─────────────────────────────
 # SCHEDULER
 # ─────────────────────────────
-scheduler = BlockingScheduler()
+scheduler = BlockingScheduler(timezone=LAGOS_TZ)
 
 scheduler.add_job(
     refresh_live_predictions,
@@ -303,10 +328,22 @@ scheduler.add_job(
     daily_pipeline,
     'cron',
     hour=2,
-    minute=00,
+    minute=0,
+    id='daily_pipeline',
     max_instances=1,
     coalesce=True
 )
+
+ # 🧾 Betcodes every 3 hours from 6AM → 21PM
+scheduler.add_job(
+    run_betcodes,
+    'cron',
+    hour='6-23/3',   # 6,9,12,15,18,21
+    minute=10,       # 🔥 offset to avoid DB clash
+    max_instances=1,
+    coalesce=True
+    )
+
 
 print("🚀 Worker started...")
 print("   - Live updates every 5 minutes")

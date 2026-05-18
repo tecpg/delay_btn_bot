@@ -301,15 +301,26 @@ def refresh_live_predictions():
             release_db(conn)
 
 
+from notification_service import MatchNotificationService
+
 def run_betcodes():
     logging.info(f"🧾 Running get_betcodes at {datetime.now(LAGOS_TZ)}")
+
     try:
-        get_betcodes.run()
+        count = get_betcodes.run()
         logging.info("✅ get_betcodes completed")
+
+        # 🔥 INIT SERVICE
+        notifier = MatchNotificationService()
+
+        # 🔥 SEND ONLY IF NEW DATA
+        if count and count > 0:
+            notifier.send_betcode_notification()
+        else:
+            logging.info("ℹ️ No new betcodes → skipping notification")
+
     except Exception as e:
         logging.exception("❌ get_betcodes failed")
-
-
 # ─────────────────────────────
 # SCHEDULER
 # ─────────────────────────────

@@ -1,45 +1,33 @@
 import re
 import time
 import random
-from datetime import datetime, timedelta
 import csv
-import json
 import logging
-import psycopg2
 import requests
+from datetime import datetime
 from bs4 import BeautifulSoup
-import mysql.connector
-from mysql.connector import errorcode
-import csv
-import time
-import kbt_funtions
-
-# Custom functions (ensure these are defined elsewhere)
-import kbt_funtions
-import mysql
-from consts import global_consts as gc
-import kbt_load_env
 import psycopg2
 from psycopg2.extras import RealDictCursor
+import pytz
 
-from consts import global_consts as gc
+import kbt_funtions
 import kbt_load_env
+from consts import global_consts as gc
 
-# Configure logging for better tracking
+# ────────────────────────────────────────────────
+# CONFIG
+# ────────────────────────────────────────────────
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-import pytz
-from datetime import datetime
-
 lagos = pytz.timezone("Africa/Lagos")
-
 set_date = datetime.now(lagos).date()
-
 post_time = datetime.now().strftime('%H:%M:%S')
 
+CSV_FILE = "csv_files/betcodes.csv"
+
 # ────────────────────────────────────────────────
-# DB
+# DB CONNECTION
 # ────────────────────────────────────────────────
 def get_db():
     return psycopg2.connect(
@@ -48,8 +36,19 @@ def get_db():
         sslmode="require"
     )
 
-# print(post_time)
-def get_bet_codes(set_date):
+# ────────────────────────────────────────────────
+# CSV HELPERS
+# ────────────────────────────────────────────────
+def clear_csv():
+    with open(CSV_FILE, "w", encoding="utf-8") as f:
+        f.truncate(0)
+    print("🧹 CSV cleared")
+
+# ────────────────────────────────────────────────
+# SCRAPER
+# ────────────────────────────────────────────────
+def get_bet_codes():
+    results = []
     # Headers for requests
     headers_list = [
 
@@ -93,152 +92,90 @@ def get_bet_codes(set_date):
 
     # Select a random header and merge with additional headers
     headers = {**random.choice(headers_list), **additional_headers}
-    base_time = datetime.now()
-    card_index = 0
-    results = []
 
-    # Loop through pages 1 to 3
-    for page_num in range(1, 4):
-        url = f"https://convertbetcodes.com/c/free-bet-codes-for-today?page={page_num}"
-        logger.info(f"Scraping page {page_num}: {url}")
+    clear_csv()  # 🔥 CLEAR BEFORE WRITING
+
+    for page in range(1, 4):
+        url = f"https://convertbetcodes.com/c/free-bet-codes-for-today?page={page}"
+        logger.info(f"Scraping page {page}")
 
         try:
-            response = requests.get(url, headers=headers, timeout=10)
-            if response.status_code != 200:
-                logger.warning(f"Failed to retrieve page {page_num}. Status: {response.status_code}")
-                continue
+            res = requests.get(url, headers=headers, timeout=10)
+            soup = BeautifulSoup(res.content, "html.parser")
 
-            soup = BeautifulSoup(response.content, 'html.parser')
-
-            # Loop through each card
             for card in soup.find_all("div", class_="card"):
                 try:
-                    # Extracting data from each card
-                   # Extracting the text from the card
-                    left_text = card.select_one(".row .col-6:nth-of-type(1)").get_text(strip=True).replace('\n', ' ')
-                   
-                    
-                    # Regular expression to extract the odds (e.g., 3.42 from '2events@3.42 odds')
-                    odds_match = re.search(r'@([\d.]+)', left_text)
-                    
-                    # Check if we found a match
-                    if odds_match:
-                        odds = odds_match.group(1)  # This will give the odds as a string (e.g., '3.42')
-                    else:
-                        odds = ""  # If no odds are found, set to an empty string or a default value
-                    
-                    float_left = card.select_one("span.float-left")
-                    from_code = float_left.contents[0].strip('@') if float_left and float_left.contents else ""
-                    from_code =  from_code.replace('\r', '').replace('\n', '').strip()
+                    text = card.get_text()
 
-                    from_platform = ""
+                    odds_match = re.search(r'@([\d.]+)', text)
+                    odds = odds_match.group(1) if odds_match else None
 
-                    if float_left:
-                        code_elem = float_left.select_one("code")
-                        if code_elem:
-                            from_platform = code_elem.get_text(strip=True).split()[0]
+                    code_elem = card.find("code")
+                    code = code_elem.text.strip() if code_elem else None
 
-                            # Normalize platform name if it's 'DB'
-                            if from_platform == "DB":
-                                from_platform = "db_bet"
+                    if not code or not odds:
+                        continue
 
-
-                    flag_icon_elem = float_left.select_one("span.flag-icon") if float_left else None
-                    platform_icon_class = flag_icon_elem["class"][-1].split('-')[-1] if flag_icon_elem and "class" in flag_icon_elem.attrs else ""
-
-                    # Generating the current post time
-                    # post_time_dt = base_time + timedelta(minutes=-13 * card_index)
-                    # post_time = post_time_dt.strftime('%H:%M:%S')
-
-                    # print(post_time)
-                    
-
-
-                    post_date = gc.PRESENT_DAY_YMD
-                  # List of allowed platforms
-                    allowed_platforms = ["1xbet", "betano", "betika", "betway", "betwinner", "sportybet", "betcorrect", "betking", "paripulse"]
-
-                    # Check if the 'from_platform' is in the allowed platforms list
-                    if from_platform.lower() in allowed_platforms:
-                        site = f"{from_platform}:{platform_icon_class}"
-                    else:
-                        site = from_platform  # You can leave this as an empty string or set it to some other value if you prefer
-
-
-                    # Generating random rate and booking code ID
-                    rate = kbt_funtions.get_random_rate()
-                    booking_code_id = kbt_funtions.get_betcode_uid()
-                    platform_color = kbt_funtions.get_platforms_json(from_platform)
-
-                    # Forming the result for this card
-                    try:
-                        numeric_odds = float(odds)  # Convert the string to a float
-                        price = 'premium' if numeric_odds > 1000 else 'free'
-                    except (ValueError, TypeError):
-                        price = 'free'  # Fallback if conversion fails
+                    platform = code.split()[0].lower()
 
                     result = {
-                        "site": site,
-                        "code": from_code,
+                        "site": platform,
+                        "code": code,
                         "odd": odds,
-                        "rate": rate,
-                        "email": 'support@bettingtipsnet.com',
-                        "price": price,
+                        "rate": kbt_funtions.get_random_rate(),
+                        "email": "support@bettingtipsnet.com",
+                        "price": "premium" if float(odds) > 1000 else "free",
                         "post_time": post_time,
-                        "post_date": post_date,
-                        "booking_code_id": booking_code_id,
-                        "slip_result_link": '',
-                        "platform_logo_link": platform_color,
-                        "result": ""
+                        "post_date": gc.PRESENT_DAY_YMD,
+                        "booking_code_id": kbt_funtions.get_betcode_uid(),
+                        "slip_result_link": None,              # ✅ FIXED
+                        "platform_logo_link": None,            # ✅ FIXED
+                        "result": None                         # ✅ FIXED
                     }
 
-
-
-                    # Append result to the results list
                     results.append(result)
-                    card_index += 1
 
                 except Exception as e:
-                    logger.error(f"Error parsing card: {e}")
+                    logger.error(f"Card parse error: {e}")
 
         except Exception as e:
-            logger.error(f"Exception while scraping page {page_num}: {e}")
+            logger.error(f"Page error: {e}")
 
-        # Rate limiting: Sleep for a random time between 1 and 3 seconds between requests
-        sleep_time = random.uniform(1, 3)
-        logger.info(f"Sleeping for {sleep_time:.2f} seconds before next request.")
-        time.sleep(sleep_time)  # Add sleep time between requests
+        time.sleep(random.uniform(1, 2))
 
-    # Exporting results to CSV
-    csv_filename = "csv_files/betcodes.csv"
-    with open(csv_filename, mode='w', newline='', encoding='utf-8') as file:
-        fieldnames = ["site", "code", "odd", "rate", "email", "price", "post_time", "post_date", "booking_code_id", "slip_result_link", "platform_logo_link", "result"]
+    # ─────────────────────────────
+    # WRITE CSV
+    # ─────────────────────────────
+    with open(CSV_FILE, mode='w', newline='', encoding='utf-8') as file:
+        fieldnames = [
+            "site", "code", "odd", "rate", "email", "price",
+            "post_time", "post_date", "booking_code_id",
+            "slip_result_link", "platform_logo_link", "result"
+        ]
         writer = csv.DictWriter(file, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(results)
 
-    logger.info(f"Results saved to {csv_filename}")
+    logger.info(f"✅ CSV written with {len(results)} rows")
 
-   
-
-
-
-def connect_server(csv_filename):
+# ────────────────────────────────────────────────
+# DB INSERT
+# ────────────────────────────────────────────────
+def connect_server():
     conn = get_db()
     cursor = conn.cursor()
+    inserted = 0
 
     try:
         print("✅ Connected to PostgreSQL")
 
-        inserted = 0
-
-        with open(csv_filename, "r", encoding='utf-8') as f:
+        with open(CSV_FILE, "r", encoding='utf-8') as f:
             csv_data = csv.reader(f)
-            next(csv_data, None)  # skip header
+            next(csv_data, None)
 
             for row in csv_data:
                 try:
-                    # 🔥 Normalize values
+                    # 🔥 Normalize
                     row = [val.strip() if isinstance(val, str) else val for val in row]
                     row = [val if val not in ("", None) else None for val in row]
 
@@ -246,62 +183,35 @@ def connect_server(csv_filename):
                     odd = row[2]
                     booking_id = row[8]
 
-                    # 🚫 Skip invalid rows
-                    if not code:
-                        print("⚠️ Skipping (empty code):", row)
+                    # 🚫 Skip bad rows
+                    if not code or not odd or not booking_id:
                         continue
 
-                    if not odd:
-                        print("⚠️ Skipping (empty odd):", row)
-                        continue
+                    row[8] = int(booking_id)
 
-                    if not booking_id:
-                        print("⚠️ Skipping (empty booking_code_id):", row)
-                        continue
+                    float(odd)  # validate
 
-                    # 🔥 Convert booking_code_id
-                    try:
-                        row[8] = int(booking_id)
-                    except:
-                        print("⚠️ Invalid booking_code_id:", booking_id)
-                        continue
-
-                    # 🔥 Validate odd
-                    try:
-                        float(odd)
-                    except:
-                        print("⚠️ Invalid odd:", odd)
-                        continue
-
-                    # ✅ Insert
                     cursor.execute("""
                         INSERT INTO booking_codes 
                         (site, code, odd, rate, email, price, post_time, post_date, booking_code_id, slip_result_link, platform_logo_link, result)
                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        ON CONFLICT (code) DO NOTHING
                     """, row)
 
-                    inserted += 1
+                    if cursor.rowcount > 0:
+                        inserted += 1
 
                 except Exception as e:
                     print("❌ Row insert error:", e)
-                    conn.rollback()  # reset failed transaction
+                    conn.rollback()
 
-        # ✅ Commit AFTER loop
         conn.commit()
-        print(f"✅ Inserted {inserted} rows")
+        print(f"✅ Inserted {inserted} new rows")
 
-        # 🔥 Cleanup duplicates (PostgreSQL safe)
-        cursor.execute("""
-            DELETE FROM booking_codes
-            WHERE id NOT IN (
-                SELECT MAX(id)
-                FROM booking_codes
-                GROUP BY code
-            )
-        """)
-        conn.commit()
-
-        print(f"🧹 Deleted {cursor.rowcount} duplicates")
+        # 🔥 CLEAR CSV ONLY IF SUCCESS
+        if inserted > 0:
+            clear_csv()
+            print("🧹 CSV cleared after successful insert")
 
     except Exception as e:
         import traceback
@@ -312,17 +222,26 @@ def connect_server(csv_filename):
     finally:
         cursor.close()
         conn.close()
-        
+
+    return inserted
+
+# ────────────────────────────────────────────────
+# MAIN
+# ────────────────────────────────────────────────
 def run():
     try:
-        get_bet_codes(set_date)
-        # Insert data into the database (pass the csv_filename)
-        # Generate the CSV filename for the current date
-        csv_filename = "csv_files/betcodes.csv"
-        connect_server(csv_filename)
-    except Exception as e:
-        logger.error(f"Error during the run: {e}")
+        logger.info("🚀 Running betcodes pipeline")
 
+        get_bet_codes()
+        inserted = connect_server()
+
+        logger.info(f"🎯 Done. Inserted: {inserted}")
+
+        return inserted
+
+    except Exception as e:
+        logger.error(f"❌ Pipeline error: {e}")
+        return 0
 
 
 if __name__ == "__main__":

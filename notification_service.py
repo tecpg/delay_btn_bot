@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import List, Dict
 from db_utils import get_db, release_db
 import kbt_load_env
+import requests  # 🔥 FIX: add import
 
 
 class MatchNotificationService:
@@ -15,7 +16,32 @@ class MatchNotificationService:
         print(f"📱 App ID: {self.onesignal_app_id}")
         print(f"🔑 API Key exists: {bool(self.onesignal_api_key)}")
 
-    # ========================= SEND REMINDER =========================
+        # ========================= SEND REMINDER =========================
+
+
+    def send_betcode_notification(self):
+        url = "https://onesignal.com/api/v1/notifications"
+
+        payload = {
+            "app_id": self.onesignal_app_id,
+            "included_segments": ["All"],
+            "headings": {"en": "🔥 New Betcodes Available"},
+            "contents": {"en": "Fresh booking codes just dropped. Tap to view now!"},
+            "data": {
+                "type": "betcodes"
+            }
+        }
+
+        headers = {
+            "Authorization": f"Basic {self.onesignal_api_key}",  # 🔥 FIXED
+            "Content-Type": "application/json"
+        }
+
+        response = requests.post(url, json=payload, headers=headers)
+
+        print("📢 Notification sent:", response.status_code, response.text)
+
+
     async def send_match_reminder(self, fixture: Dict):
         try:
             users = await self.get_users_for_fixture(fixture['fixture_id'])

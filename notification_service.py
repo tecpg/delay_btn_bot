@@ -73,7 +73,8 @@ class MatchNotificationService:
                         "away_team": fixture['away_team'],
                         "league": fixture.get('league'),
                         "match_datetime": str(fixture.get('match_datetime')),
-                        "league_countrty": str(fixture.get('league_country')),
+                        "league_country": str(fixture.get('league_country')),
+                            "odd": str(fixture.get('odd')),
 
                         # 🔥 NEW: PREDICTION
                         "prediction": fixture.get('prediction'),  # e.g "Home Win", "Over 2.5"

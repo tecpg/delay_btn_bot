@@ -57,34 +57,45 @@ class MatchNotificationService:
             minutes_until = int((match_time - datetime.now()).total_seconds() / 60)
 
             payload = {
-                    "app_id": self.onesignal_app_id,
-                    "include_external_user_ids": users,
-                    "target_channel": "push",
-                    "headings": {"en": "⚽ Match Starting Soon!"},
-                    "contents": {
-                        "en": f"{fixture['home_team']} vs {fixture['away_team']} starts in {minutes_until} mins"
-                    },
-                    "data": {
-                        "type": "match_reminder",
-                        "fixture_id": str(fixture['fixture_id']),
+    "app_id": self.onesignal_app_id,
+    "include_external_user_ids": users,
+    "target_channel": "push",
+    "headings": {"en": "⚽ Match Starting Soon!"},
+    "contents": {
+        "en": f"{fixture['home_team']} vs {fixture['away_team']} starts in {minutes_until} mins"
+    },
+    "data": {
+        "type": "match_reminder",
+        "fixture_id": str(fixture['fixture_id']),
 
-                        # 🔥 BASIC MATCH INFO
-                        "home_team": fixture['home_team'],
-                        "away_team": fixture['away_team'],
-                        "league": fixture.get('league'),
-                        "match_datetime": str(fixture.get('match_datetime')),
-                        "league_country": str(fixture.get('league_country')),
-                            "odd": str(fixture.get('odd')),
+        # 🔥 BASIC MATCH INFO
+        "home_team": fixture.get('home_team', ""),
+        "away_team": fixture.get('away_team', ""),
+        "league": fixture.get('league', ""),
+        "league_country": fixture.get('league_country', ""),
 
-                        # 🔥 NEW: PREDICTION
-                        "prediction": fixture.get('prediction'),  # e.g "Home Win", "Over 2.5"
+        # 🔥 DATE / TIME
+        "match_datetime": str(fixture.get('match_datetime', "")),
 
-                        # 🔥 NEW: TEAM LOGOS
-                        "home_logo": fixture.get('home_logo'),  # URL
-                        "away_logo": fixture.get('away_logo'),  # URL
-                    }
-                }
+        # 🔥 MATCH STATE
+        "status": fixture.get('status', "NS"),
+        "elapsed": str(fixture.get('elapsed') or ""),  # ✅ FIXED NAME
 
+        # 🔥 SCORES
+        "home_score": str(fixture.get('home_score') or "0"),
+        "away_score": str(fixture.get('away_score') or "0"),
+
+        # 🔥 ODDS
+        "odd": str(fixture.get('odd') or ""),
+
+        # 🔥 PREDICTION
+        "prediction": fixture.get('prediction', ""),
+
+        # 🔥 TEAM LOGOS
+        "home_logo": fixture.get('home_logo', ""),
+        "away_logo": fixture.get('away_logo', "")
+    }
+}
             await self._send(payload)
 
             await self.log_reminder_sent(fixture['fixture_id'])

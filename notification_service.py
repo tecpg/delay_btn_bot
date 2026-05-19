@@ -57,18 +57,32 @@ class MatchNotificationService:
             minutes_until = int((match_time - datetime.now()).total_seconds() / 60)
 
             payload = {
-                "app_id": self.onesignal_app_id,
-                "include_external_user_ids": users,  # ✅ FIXED
-                "target_channel": "push",
-                "headings": {"en": "⚽ Match Starting Soon!"},
-                "contents": {
-                    "en": f"{fixture['home_team']} vs {fixture['away_team']} starts in {minutes_until} mins"
-                },
-                "data": {
-                    "type": "match_reminder",
-                    "fixture_id": fixture['fixture_id']
+                    "app_id": self.onesignal_app_id,
+                    "include_external_user_ids": users,
+                    "target_channel": "push",
+                    "headings": {"en": "⚽ Match Starting Soon!"},
+                    "contents": {
+                        "en": f"{fixture['home_team']} vs {fixture['away_team']} starts in {minutes_until} mins"
+                    },
+                    "data": {
+                        "type": "match_reminder",
+                        "fixture_id": str(fixture['fixture_id']),
+
+                        # 🔥 BASIC MATCH INFO
+                        "home_team": fixture['home_team'],
+                        "away_team": fixture['away_team'],
+                        "league": fixture.get('league'),
+                        "match_datetime": str(fixture.get('match_datetime')),
+                        "league_countrty": str(fixture.get('league_country')),
+
+                        # 🔥 NEW: PREDICTION
+                        "prediction": fixture.get('prediction'),  # e.g "Home Win", "Over 2.5"
+
+                        # 🔥 NEW: TEAM LOGOS
+                        "home_logo": fixture.get('home_logo'),  # URL
+                        "away_logo": fixture.get('away_logo'),  # URL
+                    }
                 }
-            }
 
             await self._send(payload)
 

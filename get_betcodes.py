@@ -191,11 +191,11 @@ def get_bet_codes(set_date):
 
     logger.info(f"Results saved to {csv_filename}")
     return len(results)  # Return number of records scraped
-
 def connect_server(csv_filename):
     conn = get_db()
     cursor = conn.cursor()
     inserted = 0
+    skipped = 0
 
     try:
         print("✅ Connected to PostgreSQL")
@@ -216,49 +216,57 @@ def connect_server(csv_filename):
 
                     # 🚫 Skip invalid rows
                     if not code:
-                        # print("⚠️ Skipping (empty code):", row)
+                        print("⚠️ Skipping (empty code):", row)
                         continue
 
                     if not odd:
-                        # print("⚠️ Skipping (empty odd):", row)
+                        print("⚠️ Skipping (empty odd):", row)
                         continue
 
                     if not booking_id:
-                        # print("⚠️ Skipping (empty booking_code_id):", row)
+                        print("⚠️ Skipping (empty booking_code_id):", row)
                         continue
 
                     # 🔥 Convert booking_code_id
                     try:
                         row[8] = int(booking_id)
                     except:
-                        # print("⚠️ Invalid booking_code_id:", booking_id)
+                        print("⚠️ Invalid booking_code_id:", booking_id)
                         continue
 
                     # 🔥 Validate odd
                     try:
                         float(odd)
                     except:
-                        # print("⚠️ Invalid odd:", odd)
+                        print("⚠️ Invalid odd:", odd)
                         continue
 
-                    # ✅ Insert
+                    # ✅ Insert with ON CONFLICT to skip duplicates
                     cursor.execute("""
                         INSERT INTO booking_codes 
                         (site, code, odd, rate, email, price, post_time, post_date, booking_code_id, slip_result_link, platform_logo_link, result)
                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        ON CONFLICT (code) DO NOTHING
                     """, row)
-
-                    inserted += 1
+                    
+                    # Check if a row was actually inserted
+                    if cursor.rowcount > 0:
+                        inserted += 1
+                    else:
+                        skipped += 1
+                        print(f"⏭️ Skipped duplicate code: {code}")
 
                 except Exception as e:
-                    # print("❌ Row insert error:", e)
-                    conn.rollback()  # reset failed transaction
+                    print("❌ Row insert error:", e)
+                    # Don't rollback here - let the loop continue
+                    # Just skip this row
 
         # ✅ Commit AFTER loop
         conn.commit()
-        print(f"✅ Inserted {inserted} rows")
+        print(f"✅ Inserted {inserted} new rows")
+        print(f"⏭️ Skipped {skipped} duplicate rows")
 
-        # 🔥 Cleanup duplicates (PostgreSQL safe)
+        # 🔥 Cleanup duplicates (PostgreSQL safe) - Optional, remove if not needed
         cursor.execute("""
             DELETE FROM booking_codes
             WHERE id NOT IN (
@@ -270,7 +278,7 @@ def connect_server(csv_filename):
         conn.commit()
 
         if cursor.rowcount > 0:
-            print(f"🧹 Deleted {cursor.rowcount} duplicates")
+            print(f"🧹 Deleted {cursor.rowcount} duplicate records")
 
     except Exception as e:
         import traceback
@@ -282,8 +290,7 @@ def connect_server(csv_filename):
         cursor.close()
         conn.close()
     
-    return inserted  # Return the number of rows inserted
-
+    return inserted
 def run():
     """Main function that returns the number of inserted records"""
     try:

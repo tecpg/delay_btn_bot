@@ -364,7 +364,7 @@ scheduler.add_job(
 scheduler.add_job(
     daily_pipeline,
     'cron',
-    hour=2,
+    hour=1,
     minute=0,
     id='daily_pipeline',
     max_instances=1,

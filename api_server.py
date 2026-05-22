@@ -997,7 +997,7 @@ from fastapi import HTTPException, Depends
 from typing import Optional
 
 # Add this endpoint after your existing fixture endpoints
-@app.get("/api/fixture/{fixture_id}")
+@app.get("/fixture/{fixture_id}")
 async def get_single_fixture(fixture_id: int):
     """
     Fetch fresh fixture data for notification clicks.

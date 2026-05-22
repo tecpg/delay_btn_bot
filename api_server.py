@@ -992,7 +992,114 @@ async def get_fixture_details(fixture_id: int):
 
 
 
+# Add this import at the top if not already present
+from fastapi import HTTPException, Depends
+from typing import Optional
 
+# Add this endpoint after your existing fixture endpoints
+@app.get("/api/fixture/{fixture_id}")
+async def get_single_fixture(fixture_id: int):
+    """
+    Fetch fresh fixture data for notification clicks.
+    Used when users click on notifications to get the latest match data.
+    Only fetches from pro_tips table.
+    """
+    cache_key = f"api_fixture:{fixture_id}"
+    
+    # 🔥 Check Redis cache first (short TTL for live matches)
+    cached = redis_client.get(cache_key)
+    if cached:
+        return json.loads(cached)
+    
+    conn = get_db()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+    
+    try:
+        # Fetch fixture data ONLY from pro_tips table
+        cursor.execute("""
+            SELECT 
+                fixture_id,
+                home_team,
+                away_team,
+                home_logo,
+                away_logo,
+                league,
+                league_country,
+                league_logo,
+                match_datetime,
+                date,
+                status,
+                elapsed,
+                home_score,
+                away_score,
+                odd,
+                prediction,
+                extra,
+                source,
+                last_updated,
+                result_notification_sent
+            FROM pro_tips
+            WHERE fixture_id = %s
+            LIMIT 1
+        """, (fixture_id,))
+        
+        fixture = cursor.fetchone()
+        
+        if not fixture:
+            raise HTTPException(status_code=404, detail=f"Fixture {fixture_id} not found in pro_tips table")
+        
+        # Convert datetime objects to strings for JSON serialization
+        if fixture.get('match_datetime'):
+            if isinstance(fixture['match_datetime'], datetime):
+                fixture['match_datetime'] = fixture['match_datetime'].isoformat()
+        
+        if fixture.get('last_updated'):
+            if isinstance(fixture['last_updated'], datetime):
+                fixture['last_updated'] = fixture['last_updated'].isoformat()
+        
+        if fixture.get('date'):
+            if isinstance(fixture['date'], (date, datetime)):
+                fixture['date'] = str(fixture['date'])
+        
+        # Convert None values to empty strings for better mobile handling
+        for key, value in fixture.items():
+            if value is None:
+                fixture[key] = ""
+            elif isinstance(value, (int, float)) and key in ['home_score', 'away_score']:
+                fixture[key] = str(value) if value is not None else "0"
+            elif isinstance(value, bool):
+                fixture[key] = value
+        
+        # Add a timestamp to help mobile apps know when this data was fetched
+        fixture['server_timestamp'] = datetime.now(timezone.utc).isoformat()
+        
+        # 🔥 Cache based on match status
+        status = fixture.get('status', 'NS')
+        if status in ["FT", "AET", "PEN"]:
+            ttl = CACHE_TTL_LONG  # 3 days for finished matches
+        elif status in ["1H", "2H", "LIVE", "HT"]:
+            ttl = CACHE_TTL_SHORT  # 30 seconds for live matches
+        else:
+            ttl = CACHE_TTL_MEDIUM  # 10 minutes for upcoming matches
+        
+        # Cache the result
+        redis_client.setex(cache_key, ttl, json.dumps(fixture, default=json_serializer))
+        
+        return JSONResponse(
+            content=fixture,
+            media_type="application/json; charset=utf-8"
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error fetching fixture: {str(e)}")
+    
+    finally:
+        cursor.close()
+        release_db(conn)
 
 
 # ────────────────────────────────────────────────

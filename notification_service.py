@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import List, Dict
 from db_utils import get_db, release_db
 import kbt_load_env
-import requests  # 🔥 FIX: add import
+import requests  # used by send_betcode_notification
 
 
 class MatchNotificationService:
@@ -16,9 +16,7 @@ class MatchNotificationService:
         print(f"📱 App ID: {self.onesignal_app_id}")
         print(f"🔑 API Key exists: {bool(self.onesignal_api_key)}")
 
-        # ========================= SEND REMINDER =========================
-
-
+    # ========================= BETCODE BROADCAST =========================
     def send_betcode_notification(self):
         url = "https://onesignal.com/api/v1/notifications"
 
@@ -33,7 +31,7 @@ class MatchNotificationService:
         }
 
         headers = {
-            "Authorization": f"Basic {self.onesignal_api_key}",  # 🔥 FIXED
+            "Authorization": f"Basic {self.onesignal_api_key}",
             "Content-Type": "application/json"
         }
 
@@ -41,87 +39,126 @@ class MatchNotificationService:
 
         print("📢 Notification sent:", response.status_code, response.text)
 
+    # ========================= SEND REMINDER =========================
     async def send_match_reminder(self, fixture: Dict):
         try:
-                users = await self.get_users_for_fixture(fixture['fixture_id'])
-                
-                if not users:
-                    print(f"❌ No users for fixture {fixture['fixture_id']}")
-                    return
-                
-                match_time = fixture['match_datetime']
-                if isinstance(match_time, str):
-                    match_time = datetime.fromisoformat(match_time)
-                
-                minutes_until = int((match_time - datetime.now()).total_seconds() / 60)
-                
-                payload = {
-                    "app_id": self.onesignal_app_id,
-                    "include_external_user_ids": users,
-                    "target_channel": "push",
-                    "headings": {"en": "⚽ Match Starting Soon!"},
-                    "contents": {
-                        "en": f"{fixture['home_team']} vs {fixture['away_team']} starts in {minutes_until} mins"
-                    },
-                    "data": {
-                        "type": "match_reminder",
-                        "fixture_id": str(fixture['fixture_id'])  # 🔥 ONLY fixture_id
-                    }
+            fixture_id = fixture['fixture_id']
+
+            users = await self.get_users_for_fixture(fixture_id)
+
+            if not users:
+                print(f"❌ No users for fixture {fixture_id}")
+                return
+
+            # 🔒 Idempotency guard: atomically claim this reminder BEFORE sending.
+            # If it was already sent (e.g. the scheduler ran again a minute later,
+            # or two workers fired at once) the claim fails and we skip — this is
+            # what stops the same notification going out 20 times.
+            if not await self._claim_reminder(fixture_id):
+                print(f"⏭️  Reminder already sent for fixture {fixture_id}, skipping")
+                return
+
+            match_time = fixture['match_datetime']
+            if isinstance(match_time, str):
+                match_time = datetime.fromisoformat(match_time)
+
+            # Use a clock that matches the fixture's tz-awareness so we don't
+            # crash subtracting an aware datetime from a naive one.
+            now = datetime.now(match_time.tzinfo) if match_time.tzinfo else datetime.now()
+            minutes_until = int((match_time - now).total_seconds() / 60)
+
+            payload = {
+                "app_id": self.onesignal_app_id,
+                "include_external_user_ids": users,
+                "target_channel": "push",
+                "headings": {"en": "⚽ Match Starting Soon!"},
+                "contents": {
+                    "en": f"{fixture['home_team']} vs {fixture['away_team']} starts in {minutes_until} mins"
+                },
+                "data": {
+                    "type": "match_reminder",
+                    "fixture_id": str(fixture_id)  # 🔥 ONLY fixture_id
                 }
-                
-                await self._send(payload)
-                await self.log_reminder_sent(fixture['fixture_id'])
-                    
+            }
+
+            sent = await self._send(payload)
+
+            # If the send failed, release the claim so a later run can retry
+            # instead of the notification being silently lost forever.
+            if not sent:
+                await self._release_reminder(fixture_id)
+
         except Exception as e:
             print(f"❌ Reminder error: {e}")
+
     # ========================= SEND RESULT =========================
     async def send_prediction_result(self, fixture: Dict):
-        users = await self.get_users_for_fixture(fixture['fixture_id'])
+        try:
+            fixture_id = fixture['fixture_id']
 
-        if not users:
-            return
+            users = await self.get_users_for_fixture(fixture_id)
 
-        home = fixture['home_team']
-        away = fixture['away_team']
-        hs = fixture.get('home_score', 0)
-        aw = fixture.get('away_score', 0)
-        pred = fixture.get('prediction', '')
+            if not users:
+                return
 
-        correct = self.is_prediction_correct(pred, hs, aw)
+            # 🔒 Same idempotency guard for result notifications.
+            if not await self._claim_result(fixture_id):
+                print(f"⏭️  Result already sent for fixture {fixture_id}, skipping")
+                return
 
-        title = "🎯 Prediction Correct!" if correct else "📊 Match Result"
-        message = f"{home} {hs}-{aw} {away}\nPrediction: {pred}"
+            home = fixture['home_team']
+            away = fixture['away_team']
+            hs = fixture.get('home_score', 0)
+            aw = fixture.get('away_score', 0)
+            pred = fixture.get('prediction', '')
 
-        payload = {
-            "app_id": self.onesignal_app_id,
-            "include_external_user_ids": users,  # ✅ FIXED
-            "target_channel": "push",
-            "headings": {"en": title},
-            "contents": {"en": message},
-            "data": {
-                "fixture_id": fixture['fixture_id']
+            correct = self.is_prediction_correct(pred, hs, aw)
+
+            title = "🎯 Prediction Correct!" if correct else "📊 Match Result"
+            message = f"{home} {hs}-{aw} {away}\nPrediction: {pred}"
+
+            payload = {
+                "app_id": self.onesignal_app_id,
+                "include_external_user_ids": users,
+                "target_channel": "push",
+                "headings": {"en": title},
+                "contents": {"en": message},
+                "data": {
+                    "fixture_id": fixture_id
+                }
             }
-        }
 
-        await self._send(payload)
-        await self.log_result_sent(fixture['fixture_id'])
+            sent = await self._send(payload)
+
+            if not sent:
+                await self._release_result(fixture_id)
+
+        except Exception as e:
+            print(f"❌ Result error: {e}")
 
     # ========================= SEND CORE =========================
-    async def _send(self, payload: Dict):
-        async with httpx.AsyncClient() as client:
-            res = await client.post(
-                self.api_url,
-                headers={
-                    "Authorization": f"Key {self.onesignal_api_key}",
-                    "Content-Type": "application/json"
-                },
-                json=payload
-            )
+    async def _send(self, payload: Dict) -> bool:
+        """POST to OneSignal. Returns True only on a 2xx response."""
+        try:
+            async with httpx.AsyncClient() as client:
+                res = await client.post(
+                    self.api_url,
+                    headers={
+                        "Authorization": f"Key {self.onesignal_api_key}",
+                        "Content-Type": "application/json"
+                    },
+                    json=payload
+                )
 
             print("📬", res.status_code, res.text)
 
-            if res.status_code not in [200, 201]:
+            if res.status_code not in (200, 201):
                 print("❌ Notification failed")
+                return False
+            return True
+        except Exception as e:
+            print(f"❌ Notification request error: {e}")
+            return False
 
     # ========================= USERS =========================
     async def get_users_for_fixture(self, fixture_id: int) -> List[str]:
@@ -130,13 +167,15 @@ class MatchNotificationService:
 
         try:
             cursor.execute("""
-                SELECT user_id
+                SELECT DISTINCT user_id
                 FROM device_fixture_notifications
                 WHERE fixture_id = %s
                 AND enabled = TRUE
             """, (fixture_id,))
 
-            users = [row[0] for row in cursor.fetchall()]
+            # DISTINCT in SQL + dedupe here guards against a single user with
+            # multiple device rows being pushed the same notification N times.
+            users = list(dict.fromkeys(row[0] for row in cursor.fetchall()))
             print(f"👤 Found {len(users)} users for fixture {fixture_id}")
             return users
 
@@ -168,7 +207,86 @@ class MatchNotificationService:
             cursor.close()
             release_db(conn)
 
-    # ========================= LOGGING =========================
+    # ========================= IDEMPOTENT CLAIM / RELEASE =========================
+    async def _claim_reminder(self, fixture_id: int) -> bool:
+        """
+        Atomically mark a reminder as sent. Returns True only if THIS call won
+        the claim (i.e. it had not already been sent).
+
+        The `ON CONFLICT ... DO UPDATE ... WHERE` only updates when the flag is
+        not already TRUE, and RETURNING yields a row only when an insert or
+        update actually happened. Postgres locks the conflicting row for the
+        duration, so two concurrent callers can't both win.
+        """
+        conn = get_db()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+                INSERT INTO notification_log (fixture_id, reminder_sent)
+                VALUES (%s, TRUE)
+                ON CONFLICT (fixture_id)
+                DO UPDATE SET reminder_sent = TRUE
+                WHERE notification_log.reminder_sent IS DISTINCT FROM TRUE
+                RETURNING fixture_id
+            """, (fixture_id,))
+            claimed = cursor.fetchone() is not None
+            conn.commit()
+            return claimed
+        finally:
+            cursor.close()
+            release_db(conn)
+
+    async def _release_reminder(self, fixture_id: int):
+        """Undo a reminder claim after a failed send so it can be retried."""
+        conn = get_db()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+                UPDATE notification_log
+                SET reminder_sent = FALSE
+                WHERE fixture_id = %s
+            """, (fixture_id,))
+            conn.commit()
+        finally:
+            cursor.close()
+            release_db(conn)
+
+    async def _claim_result(self, fixture_id: int) -> bool:
+        """Atomically mark a result notification as sent. See _claim_reminder."""
+        conn = get_db()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+                INSERT INTO notification_log (fixture_id, result_notification_sent)
+                VALUES (%s, TRUE)
+                ON CONFLICT (fixture_id)
+                DO UPDATE SET result_notification_sent = TRUE
+                WHERE notification_log.result_notification_sent IS DISTINCT FROM TRUE
+                RETURNING fixture_id
+            """, (fixture_id,))
+            claimed = cursor.fetchone() is not None
+            conn.commit()
+            return claimed
+        finally:
+            cursor.close()
+            release_db(conn)
+
+    async def _release_result(self, fixture_id: int):
+        """Undo a result claim after a failed send so it can be retried."""
+        conn = get_db()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+                UPDATE notification_log
+                SET result_notification_sent = FALSE
+                WHERE fixture_id = %s
+            """, (fixture_id,))
+            conn.commit()
+        finally:
+            cursor.close()
+            release_db(conn)
+
+    # ========================= LOGGING (kept for backward compatibility) =========================
     async def log_reminder_sent(self, fixture_id: int):
         conn = get_db()
         cursor = conn.cursor()
@@ -203,8 +321,9 @@ class MatchNotificationService:
 
     # ========================= LOGIC =========================
     def is_prediction_correct(self, prediction, hs, aw):
+        prediction = (prediction or "").lower()
         if hs > aw:
-            return "home" in prediction.lower()
+            return "home" in prediction
         elif hs < aw:
-            return "away" in prediction.lower()
-        return "draw" in prediction.lower()
+            return "away" in prediction
+        return "draw" in prediction

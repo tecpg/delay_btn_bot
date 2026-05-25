@@ -530,10 +530,10 @@ def get_vip():
 @app.get("/fixtures/vip-history")
 def get_vip_history():
 
-    cache_key = "vip_history"
-    cached = get_cache(cache_key)
-    if cached:
-        return cached
+    # cache_key = "vip_history"
+    # cached = get_cache(cache_key)
+    # if cached:
+    #     return cached
 
     conn = get_db()
     cursor = conn.cursor(cursor_factory=RealDictCursor)
@@ -607,7 +607,7 @@ def get_vip_history():
             for d in sorted(grouped.keys(), reverse=True)
         ]
 
-        set_cache(cache_key, result, 1800)
+        # set_cache(cache_key, result, 1800)
         return result
 
     except Exception as e:

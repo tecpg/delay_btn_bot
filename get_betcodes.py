@@ -100,16 +100,16 @@ def get_bet_codes(set_date):
                 try:
                     # Extracting the text from the card
                     left_text = card.select_one(".row .col-6:nth-of-type(1)").get_text(strip=True).replace('\n', ' ')
-                   
+
                     # Regular expression to extract the odds (e.g., 3.42 from '2events@3.42 odds')
                     odds_match = re.search(r'@([\d.]+)', left_text)
-                    
+
                     # Check if we found a match
                     if odds_match:
                         odds = odds_match.group(1)  # This will give the odds as a string (e.g., '3.42')
                     else:
                         odds = ""  # If no odds are found, set to an empty string or a default value
-                    
+
                     float_left = card.select_one("span.float-left")
                     from_code = float_left.contents[0].strip('@') if float_left and float_left.contents else ""
                     from_code = from_code.replace('\r', '').replace('\n', '').strip()
@@ -129,7 +129,7 @@ def get_bet_codes(set_date):
                     platform_icon_class = flag_icon_elem["class"][-1].split('-')[-1] if flag_icon_elem and "class" in flag_icon_elem.attrs else ""
 
                     post_date = gc.PRESENT_DAY_YMD
-                    
+
                     # List of allowed platforms
                     allowed_platforms = ["1xbet", "betano", "betika", "betway", "betwinner", "sportybet", "betcorrect", "betking", "paripulse"]
 
@@ -179,7 +179,14 @@ def get_bet_codes(set_date):
         # Rate limiting: Sleep for a random time between 1 and 3 seconds between requests
         sleep_time = random.uniform(1, 3)
         logger.info(f"Sleeping for {sleep_time:.2f} seconds before next request.")
-        time.sleep(sleep_time)  # Add sleep time between requests
+        time.sleep(sleep_time)
+
+    # Deduplicate by code — keep the last-seen entry for each code
+    seen = {}
+    for r in results:
+        seen[r["code"]] = r
+    results = list(seen.values())
+    logger.info(f"After deduplication: {len(results)} unique codes")
 
     # Exporting results to CSV
     csv_filename = "csv_files/betcodes.csv"
@@ -190,12 +197,13 @@ def get_bet_codes(set_date):
         writer.writerows(results)
 
     logger.info(f"Results saved to {csv_filename}")
-    return len(results)  # Return number of records scraped
+    return len(results)  # Return number of unique records
+
+
 def connect_server(csv_filename):
     conn = get_db()
     cursor = conn.cursor()
     inserted = 0
-    skipped = 0
 
     try:
         print("✅ Connected to PostgreSQL")
@@ -241,44 +249,33 @@ def connect_server(csv_filename):
                         print("⚠️ Invalid odd:", odd)
                         continue
 
-                    # ✅ Insert with ON CONFLICT to skip duplicates
+                    # ✅ Upsert — on duplicate code, overwrite with the incoming record
                     cursor.execute("""
-                        INSERT INTO booking_codes 
+                        INSERT INTO booking_codes
                         (site, code, odd, rate, email, price, post_time, post_date, booking_code_id, slip_result_link, platform_logo_link, result)
                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                        ON CONFLICT (code) DO NOTHING
+                        ON CONFLICT (code) DO UPDATE SET
+                            site               = EXCLUDED.site,
+                            odd                = EXCLUDED.odd,
+                            rate               = EXCLUDED.rate,
+                            email              = EXCLUDED.email,
+                            price              = EXCLUDED.price,
+                            post_time          = EXCLUDED.post_time,
+                            post_date          = EXCLUDED.post_date,
+                            booking_code_id    = EXCLUDED.booking_code_id,
+                            slip_result_link   = EXCLUDED.slip_result_link,
+                            platform_logo_link = EXCLUDED.platform_logo_link,
+                            result             = EXCLUDED.result
                     """, row)
-                    
-                    # Check if a row was actually inserted
-                    if cursor.rowcount > 0:
-                        inserted += 1
-                    else:
-                        skipped += 1
-                        print(f"⏭️ Skipped duplicate code: {code}")
+
+                    inserted += 1
 
                 except Exception as e:
                     print("❌ Row insert error:", e)
-                    # Don't rollback here - let the loop continue
-                    # Just skip this row
 
         # ✅ Commit AFTER loop
         conn.commit()
-        print(f"✅ Inserted {inserted} new rows")
-        print(f"⏭️ Skipped {skipped} duplicate rows")
-
-        # 🔥 Cleanup duplicates (PostgreSQL safe) - Optional, remove if not needed
-        cursor.execute("""
-            DELETE FROM booking_codes
-            WHERE id NOT IN (
-                SELECT MAX(id)
-                FROM booking_codes
-                GROUP BY code
-            )
-        """)
-        conn.commit()
-
-        if cursor.rowcount > 0:
-            print(f"🧹 Deleted {cursor.rowcount} duplicate records")
+        print(f"✅ Inserted/updated {inserted} rows")
 
     except Exception as e:
         import traceback
@@ -289,25 +286,27 @@ def connect_server(csv_filename):
     finally:
         cursor.close()
         conn.close()
-    
+
     return inserted
+
+
 def run():
     """Main function that returns the number of inserted records"""
     try:
         logger.info("🚀 Running betcodes pipeline")
-        
+
         # Scrape bet codes and get count
         scraped_count = get_bet_codes(set_date)
-        logger.info(f"📊 Scraped {scraped_count} bet codes")
-        
+        logger.info(f"📊 Scraped {scraped_count} unique bet codes")
+
         # Insert data into the database
         csv_filename = "csv_files/betcodes.csv"
         inserted_count = connect_server(csv_filename)
-        
-        logger.info(f"🎯 Pipeline complete. Inserted: {inserted_count} new rows")
-        
+
+        logger.info(f"🎯 Pipeline complete. Inserted/updated: {inserted_count} rows")
+
         return inserted_count  # ✅ RETURN THE INSERT COUNT
-        
+
     except Exception as e:
         logger.error(f"❌ Error during pipeline execution: {e}")
         return 0  # Return 0 if error occurs
@@ -315,8 +314,8 @@ def run():
 if __name__ == "__main__":
     # Store the return value when running directly
     result = run()
-    print(f"\n📊 FINAL RESULT: {result} rows inserted")
-    
+    print(f"\n📊 FINAL RESULT: {result} rows inserted/updated")
+
     # Optional: Exit with code based on result
     if result > 0:
         exit(0)  # Success

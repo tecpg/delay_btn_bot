@@ -240,7 +240,7 @@ class MatchNotificationService:
                     )
                 },
                 "data": {
-                    "type": "top_league_reminder",
+                    "type": "match_reminder",
                     "fixture_id": str(fixture_id)
                 }
             }
@@ -283,7 +283,7 @@ class MatchNotificationService:
                 "headings": {"en": title},
                 "contents": {"en": body},
                 "data": {
-                    "type": "top_league_result",
+                    "type": "match_reminder",
                     "fixture_id": str(fixture_id),
                     "correct": correct
                 }
@@ -482,7 +482,7 @@ class MatchNotificationService:
                 "headings": {"en": title},
                 "contents": {"en": body},
                 "data": {
-                    "type": "vip_result",
+                    "type": "match_reminder",
                     "fixture_id": str(fixture_id),
                     "correct": correct
                 }

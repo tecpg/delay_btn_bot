@@ -6,19 +6,16 @@ import re
 import unicodedata
 from bs4 import BeautifulSoup as soup
 from lxml import html
-from datetime import datetime, time
+from datetime import datetime, date, time
 from consts import global_consts as gc
 import kbt_funtions
 
 # ========================= CONFIG =========================
-date_ = gc.PRESENT_DAY_YMD
-p_date = gc.PRESENT_DAY_YMD
 csv_f = gc.PRO_CSV
 
 # ========================= HELPERS =========================
 
 def normalize(text):
-    """Optional: remove accents for search"""
     return unicodedata.normalize('NFKD', text)\
         .encode('ascii', 'ignore')\
         .decode('utf-8')
@@ -41,6 +38,8 @@ def is_allowed_match_time(time_str):
 # ========================= SCRAPER =========================
 
 def scrape_tips():
+    today = date.today().strftime("%Y-%m-%d")   # ← fresh on every call
+
     session = requests.Session()
     session.headers.update(gc.MY_HEARDER)
 
@@ -50,7 +49,7 @@ def scrape_tips():
     for page in range(1, 10):
         try:
             response = session.get(url + str(page), timeout=10)
-            response.encoding = 'utf-8'  # ✅ FORCE UTF-8
+            response.encoding = 'utf-8'
 
             spider = soup(response.text, "html.parser")
             dom = html.fromstring(str(spider))
@@ -61,7 +60,6 @@ def scrape_tips():
 
         for i in range(1, 11):
             try:
-                # TIME
                 time_node = dom.xpath(f'//tbody/tr[{i}]/td[1]')
                 if not time_node:
                     continue
@@ -71,14 +69,12 @@ def scrape_tips():
                 if not is_allowed_match_time(timez):
                     continue
 
-                # LEAGUE
                 league_node = dom.xpath(f'//tbody/tr[{i}]/td[4]')
                 if not league_node:
                     continue
 
                 league = league_node[0].xpath("string()").strip()
 
-                # TEAMS
                 home_node = dom.xpath(f'(//tbody/tr[{i}]//a[contains(@class,"team-cell")])[1]')
                 away_node = dom.xpath(f'(//tbody/tr[{i}]//a[contains(@class,"team-cell")])[2]')
 
@@ -91,14 +87,12 @@ def scrape_tips():
                 if not home or not away or home == away:
                     continue
 
-                # ODDS
                 odds_node = dom.xpath(f'//tbody/tr[{i}]//span[contains(@class,"odds-badge")]/text()')
                 if not odds_node:
                     continue
 
                 odds = float(odds_node[0].strip())
 
-                # PICKS
                 picks_node = dom.xpath(f'//tbody/tr[{i}]//span[contains(@class,"prediction-badge")]/text()')
                 picks = picks_node[0].strip() if picks_node else "N/A"
 
@@ -107,31 +101,26 @@ def scrape_tips():
                 elif picks == "HOME WIN":
                     picks = "HOME DC"
 
-                # STATUS
                 result_node = dom.xpath(f'//tbody/tr[{i}]//span[contains(@class,"result-badge")]/text()')
                 result_text = result_node[0].strip() if result_node else ""
 
                 if "NOT STARTED" not in result_text.upper():
                     continue
 
-                # FINAL OBJECT
                 prediction = {
                     "league": league,
                     "league_normalized": normalize(league),
-
                     "home_team": home,
                     "home_team_normalized": normalize(home),
-
                     "away_team": away,
                     "away_team_normalized": normalize(away),
-
                     "fixtures": f"{home} vs {away}",
                     "tip": picks,
                     "odd": round(odds + 0.06, 2) if kbt_funtions.check_odd_range(odds) else odds,
                     "match_time": timez,
                     "score": "?:?",
-                    "date": date_,
-                    "match_date": p_date,
+                    "date": today,
+                    "match_date": today,
                     "result": "?",
                     "code": kbt_funtions.get_code(8),
                     "source": "pro_tips",
@@ -193,8 +182,6 @@ def to_json(predictions):
 def run():
     predictions = scrape_tips()
     save_predictions_to_csv(predictions, csv_f)
-
-    # Optional: print JSON preview
     print(to_json(predictions[:2]))
 
 if __name__ == "__main__":

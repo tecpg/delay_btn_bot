@@ -1,13 +1,13 @@
 import requests
 import csv
-from datetime import datetime
+from datetime import datetime, date
 from consts import global_consts as gc
 
 API_KEY = "c45c4f7d3cf56a3173d13c30180aa40a"
 
 
 def run():
-    DATE = gc.PRESENT_DAY_YMD
+    DATE = date.today().strftime("%Y-%m-%d")
     URL = f"https://v3.football.api-sports.io/fixtures?date={DATE}"
 
     headers = {"x-apisports-key": API_KEY}
@@ -23,7 +23,6 @@ def run():
         with open(csv_file, mode="w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
 
-            # CSV Header - Added elapsed and extra time
             writer.writerow([
                 "Fixture ID",
                 "League",
@@ -39,8 +38,8 @@ def run():
                 "Home Score",
                 "Away Score",
                 "Status",
-                "Elapsed",      # ← New
-                "Extra Time"    # ← New
+                "Elapsed",
+                "Extra Time"
             ])
 
             for match in fixtures:
@@ -51,7 +50,6 @@ def run():
 
                 fixture_id = fixture.get("id")
 
-                # Extract datetime
                 fixture_datetime = fixture.get("date")
                 match_date = ""
                 match_time = ""
@@ -64,13 +62,11 @@ def run():
                     except:
                         pass
 
-                # League Information
                 league_name = league.get("name")
                 league_logo = league.get("logo")
                 league_flag = league.get("flag")
                 league_country = league.get("country")
 
-                # Teams
                 home = teams.get("home", {})
                 away = teams.get("away", {})
 
@@ -80,11 +76,9 @@ def run():
                 away_name = away.get("name")
                 away_logo = away.get("logo")
 
-                # Scores
                 score_home = goals.get("home")
                 score_away = goals.get("away")
 
-                # Status + Elapsed + Extra Time
                 status = fixture.get("status", {})
                 status_short = ""
                 elapsed = None
@@ -97,7 +91,6 @@ def run():
                 else:
                     status_short = str(status)
 
-                # Write row
                 writer.writerow([
                     fixture_id,
                     league_name,
@@ -113,11 +106,10 @@ def run():
                     score_home,
                     score_away,
                     status_short,
-                    elapsed,       # ← Added
-                    extra          # ← Added
+                    elapsed,
+                    extra
                 ])
 
-                # Nice print output
                 elapsed_str = f"{elapsed}'" if elapsed is not None else ""
                 if extra:
                     elapsed_str = f"{elapsed}+{extra}'"
@@ -139,4 +131,3 @@ def run():
 
 if __name__ == "__main__":
     run()
-

@@ -1,12 +1,12 @@
 import requests
 import csv
 from consts import global_consts as gc
-from datetime import datetime
+from datetime import datetime, date, timedelta
 
 API_KEY = "c45c4f7d3cf56a3173d13c30180aa40a"
 
 def run():
-    DATE = gc.YESTERDAY_YMD
+    DATE = (date.today() - timedelta(days=1)).strftime("%Y-%m-%d")
     URL = f"https://v3.football.api-sports.io/fixtures?date={DATE}"
 
     headers = {"x-apisports-key": API_KEY}
@@ -22,7 +22,6 @@ def run():
         with open(csv_file, mode="w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
 
-            # CSV Header with status
             writer.writerow([
                 "Fixture ID",
                 "League",
@@ -36,7 +35,7 @@ def run():
                 "Away Logo",
                 "Home Score",
                 "Away Score",
-                "Status"  # NEW COLUMN
+                "Status"
             ])
 
             for match in fixtures:
@@ -44,7 +43,6 @@ def run():
                 fixture = match.get("fixture", {})
                 fixture_id = fixture.get("id")
 
-                # Extract datetime
                 fixture_datetime = fixture.get("date")
 
                 match_date = ""
@@ -57,7 +55,7 @@ def run():
                 league = match.get("league", {})
                 teams = match.get("teams", {})
                 goals = match.get("goals", {})
-                status = fixture.get("status", {}).get("short")  # NEW: match status
+                status = fixture.get("status", {}).get("short")
 
                 league_name = league.get("name")
                 league_logo = league.get("logo")
@@ -88,7 +86,7 @@ def run():
                     away_logo,
                     score_home,
                     score_away,
-                    status  # NEW COLUMN
+                    status
                 ])
 
                 print(

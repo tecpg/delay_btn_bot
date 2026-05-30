@@ -457,10 +457,6 @@ class MatchNotificationService:
         try:
             fixture_id = fixture['fixture_id']
 
-            if not await self._claim_vip_result(fixture_id):
-                print(f"⏭️ VIP result already sent for {fixture_id}")
-                return
-
             home = fixture['home_team']
             away = fixture['away_team']
             hs = fixture.get('home_score', 0)
@@ -469,22 +465,23 @@ class MatchNotificationService:
 
             correct = self.is_prediction_correct(pred, hs, aw)
 
-            if correct:
-                title = "💎 VIP Prediction Correct!"
-                body = f"{home} {hs}-{aw} {away} ✅\nPrediction: {pred}"
-            else:
-                title = "💎 VIP Match Result"
-                body = f"{home} {hs}-{aw} {away}\nPrediction: {pred}"
+            if not correct:
+                print(f"⏭️ VIP prediction incorrect for {fixture_id}, skipping notification")
+                return
+
+            if not await self._claim_vip_result(fixture_id):
+                print(f"⏭️ VIP result already sent for {fixture_id}")
+                return
 
             payload = {
                 "app_id": self.onesignal_app_id,
                 "included_segments": ["All"],
-                "headings": {"en": title},
-                "contents": {"en": body},
+                "headings": {"en": "💎 VIP Prediction Correct!"},
+                "contents": {"en": f"{home} {hs}-{aw} {away} ✅\nPrediction: {pred}"},
                 "data": {
-                    "type": "match_reminder",
+                    "type": "vip_result",
                     "fixture_id": str(fixture_id),
-                    "correct": correct
+                    "correct": True
                 }
             }
 
@@ -494,7 +491,6 @@ class MatchNotificationService:
 
         except Exception as e:
             print(f"❌ VIP result error: {e}")
-
     async def _claim_vip_result(self, fixture_id: int) -> bool:
         conn = get_db()
         cursor = conn.cursor()

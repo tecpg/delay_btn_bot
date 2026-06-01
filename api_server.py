@@ -1165,3 +1165,10 @@ def health():
 
 
 
+@app.get("/debug/redis")
+def debug_redis():
+    try:
+        redis_client.ping()
+        return {"redis": "connected"}
+    except Exception as e:
+        return {"redis": "failed", "error": str(e)}

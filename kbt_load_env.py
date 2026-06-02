@@ -33,5 +33,5 @@ client_id_secret = os.environ['client_id_secret']
 live_pwd =  os.environ['live_pwd']
 local_pwd =  os.environ['local_pwd']
 
-redis_url = os.environ['REDISCLOUD_URL']
+redis_url =  os.environ['REDIS_URL']
 supabase_url = os.environ['SUPABASE_URL']

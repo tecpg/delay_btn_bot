@@ -431,19 +431,22 @@ scheduler.add_job(
     daily_pipeline,
     'cron',
     hour=1,
-    minute=0,
-    id='daily_pipeline',
+    minute=30,
+    id='daily_pipeline_0130',
     max_instances=1,
-    coalesce=True
+    coalesce=True,
+    replace_existing=True,
 )
+
 scheduler.add_job(
     daily_pipeline,
     'cron',
     hour=6,
     minute=0,
-    id='daily_pipeline',
+    id='daily_pipeline_0600',
     max_instances=1,
-    coalesce=True
+    coalesce=True,
+    replace_existing=True,
 )
 
 scheduler.add_job(

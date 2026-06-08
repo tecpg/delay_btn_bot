@@ -436,6 +436,15 @@ scheduler.add_job(
     max_instances=1,
     coalesce=True
 )
+scheduler.add_job(
+    daily_pipeline,
+    'cron',
+    hour=6,
+    minute=0,
+    id='daily_pipeline',
+    max_instances=1,
+    coalesce=True
+)
 
 scheduler.add_job(
     run_betcodes,

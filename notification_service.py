@@ -10,7 +10,7 @@ import requests
 class MatchNotificationService:
 
     TOP_LEAGUES = [
-        "World Cup"
+        "World Cup",
         "English Premier League",
         "Premier League",
         "La Liga",

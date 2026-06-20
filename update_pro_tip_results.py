@@ -183,3 +183,13 @@ if __name__ == "__main__":
     create_matched_csv()
 
     update_postgres_bulk(MATCHED_CSV)
+
+    # =========================
+# Run script
+# =========================
+def run():
+    create_matched_csv()
+    update_postgres_bulk(MATCHED_CSV)
+
+if __name__ == "__main__":
+    run()

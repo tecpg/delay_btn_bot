@@ -1,251 +1,336 @@
 import re
 import time
 import random
-from datetime import datetime, date
 import csv
-import json
 import logging
+import traceback
+from datetime import datetime
+
 import psycopg2
 import requests
 from bs4 import BeautifulSoup
-import kbt_funtions
-from consts import global_consts as gc
-import kbt_load_env
 from psycopg2.extras import RealDictCursor
 import pytz
 
-logging.basicConfig(level=logging.INFO)
+import kbt_funtions
+import kbt_load_env
+
+# ─────────────────────────────────────────────
+# Logging
+# ─────────────────────────────────────────────
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+)
 logger = logging.getLogger(__name__)
 
-lagos = pytz.timezone("Africa/Lagos")
+# ─────────────────────────────────────────────
+# Constants
+# ─────────────────────────────────────────────
+LAGOS             = pytz.timezone("Africa/Lagos")
+BASE_URL          = "http://paqbet.com/pg/bet-codes"
+CSV_PATH          = "csv_files/betcodes.csv"
+PAGES             = range(1, 4)
+PAGE_SLEEP        = (2, 5)
+ALLOWED_PLATFORMS = {
+    "1xbet", "betano", "betika", "betway", "betwinner",
+    "sportybet", "betcorrect", "betking", "paripulse",
+    "bet9ja", "paripesa", "msport", "db_bet",
+}
 
+USER_AGENTS = [
+    # Chrome - Windows
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.88 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.107 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.82 Safari/537.36",
+    # Firefox - Windows
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:64.0) Gecko/20100101 Firefox/64.0",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:71.0) Gecko/20100101 Firefox/71.0",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:88.0) Gecko/20100101 Firefox/88.0",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:90.0) Gecko/20100101 Firefox/90.0",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:91.0) Gecko/20100101 Firefox/91.0",
+    # Edge - Windows
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Edg/90.0.818.62",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Edg/91.0.864.59",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Edg/92.0.902.55",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Edg/93.0.961.38",
+    # Chrome - macOS
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36",
+    # Firefox - macOS
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7; rv:88.0) Gecko/20100101 Firefox/88.0",
+    # Safari - macOS
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.2 Safari/605.1.15",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.1.2 Safari/605.1.15",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Safari/605.1.15",
+    # Chrome - Linux
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36",
+    # Firefox - Linux
+    "Mozilla/5.0 (X11; Linux x86_64; rv:88.0) Gecko/20100101 Firefox/88.0",
+    # Chrome - Android
+    "Mozilla/5.0 (Linux; Android 10; SM-G970F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Mobile Safari/537.36",
+    # Firefox - Android
+    "Mozilla/5.0 (Android 10; Mobile; rv:88.0) Gecko/88.0 Firefox/88.0",
+    # Safari - iOS
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1",
+    # Chrome - iOS
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Mobile Safari/537.36",
+]
 
-# ────────────────────────────────────────────────
+# ─────────────────────────────────────────────
 # DB
-# ────────────────────────────────────────────────
+# ─────────────────────────────────────────────
 def get_db():
     return psycopg2.connect(
         kbt_load_env.supabase_url,
         cursor_factory=RealDictCursor,
-        sslmode="require"
+        sslmode="require",
     )
 
 
-def get_bet_codes(set_date):
-    headers_list = [
-        {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36", "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"},
-        {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.107 Safari/537.36", "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"},
-        {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.82 Safari/537.36", "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"},
-        {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0", "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"},
-        {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:90.0) Gecko/20100101 Firefox/90.0", "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"},
-        {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:91.0) Gecko/20100101 Firefox/91.0", "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"},
-        {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Safari/605.1.15", "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"},
-        {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.1.2 Safari/605.1.15", "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"},
-        {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.2 Safari/605.1.15", "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"},
-        {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Edg/91.0.864.59", "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"},
-        {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Edg/92.0.902.55", "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"},
-        {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Edg/93.0.961.38", "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"},
-        {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36", "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8"},
-        {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:64.0) Gecko/20100101 Firefox/64.0", "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"},
-        {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:71.0) Gecko/20100101 Firefox/71.0", "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"},
-        {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36"},
-        {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:88.0) Gecko/20100101 Firefox/88.0"},
-        {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.818.62 Safari/537.36 Edg/90.0.818.62"},
-        {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36"},
-        {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7; rv:88.0) Gecko/20100101 Firefox/88.0"},
-        {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Safari/605.1.15"},
-        {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36"},
-        {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:88.0) Gecko/20100101 Firefox/88.0"},
-        {"User-Agent": "Mozilla/5.0 (Linux; Android 10; SM-G970F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Mobile Safari/537.36"},
-        {"User-Agent": "Mozilla/5.0 (Android 10; Mobile; rv:88.0) Gecko/88.0 Firefox/88.0"},
-        {"User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1"},
-        {"User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Mobile Safari/537.36"},
-        {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.88 Safari/537.36", "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8"}
-    ]
-
-    additional_headers = {
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+# ─────────────────────────────────────────────
+# HTTP
+# ─────────────────────────────────────────────
+def make_headers() -> dict:
+    return {
+        "User-Agent": random.choice(USER_AGENTS),
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.9",
         "Referer": "https://www.google.com",
-        "Connection": "keep-alive"
+        "Connection": "keep-alive",
     }
 
-    headers = {**random.choice(headers_list), **additional_headers}
-    card_index = 0
-    results = []
 
-    # Compute fresh per-run values
-    post_date = date.today().strftime("%Y-%m-%d")
-    post_time = datetime.now().strftime("%H:%M:%S")
+def fetch_page(url: str, retries: int = 3) -> requests.Response | None:
+    for attempt in range(1, retries + 1):
+        try:
+            r = requests.get(url, headers=make_headers(), timeout=30)
+            if r.status_code == 200:
+                return r
+            logger.warning(f"[Attempt {attempt}/{retries}] Status {r.status_code} → {url}")
+        except requests.RequestException as e:
+            logger.error(f"[Attempt {attempt}/{retries}] Error: {e}")
+        if attempt < retries:
+            time.sleep(2 ** attempt)
+    logger.error(f"All {retries} attempts failed for {url}")
+    return None
 
-    for page_num in range(1, 4):
-        url = f"https://convertbetcodes.com/c/free-bet-codes-for-today?page={page_num}"
+
+# ─────────────────────────────────────────────
+# Parsing — paqbet.com HTML structure
+#
+# Each card looks like:
+#   <div class="card mg-b-5">
+#     <h4>
+#       <span class="float-left">
+#         <small>PLATFORM</small>
+#         <span class="badge">N events <span class="flag-icon flag-icon-ng"></span></span>
+#       </span>
+#       <span class="float-right">
+#         BOOKING_CODE
+#         <span class="badge">@ODDS odds</span>
+#       </span>
+#     </h4>
+#   </div>
+# ─────────────────────────────────────────────
+def parse_card(card, post_date: str, post_time: str) -> dict | None:
+    try:
+        # ── Platform (e.g. "bet9ja", "1xbet") ──
+        platform_elem = card.select_one("h4 .float-left small")
+        if not platform_elem:
+            return None
+        from_platform = platform_elem.get_text(strip=True).lower()
+        if from_platform == "db":
+            from_platform = "db_bet"
+
+        # ── Country flag class (e.g. "ng") ──
+        flag_elem = card.select_one("h4 .float-left .flag-icon")
+        country_code = ""
+        if flag_elem:
+            classes = flag_elem.get("class", [])
+            for cls in classes:
+                if cls.startswith("flag-icon-"):
+                    country_code = cls.replace("flag-icon-", "")
+                    break
+
+        # ── Booking code and odds — inside float-right ──
+        float_right = card.select_one("h4 .float-right")
+        if not float_right:
+            return None
+
+        # The booking code is the first text node inside float-right
+        raw_text = float_right.get_text(separator="|", strip=True)
+        # raw_text looks like: "5HSG9P9|@3.34 odds"
+        parts = [p.strip() for p in raw_text.split("|") if p.strip()]
+
+        from_code = parts[0] if parts else ""
+        from_code = from_code.strip("@").strip()
+        if not from_code:
+            return None
+
+        # Odds: find the badge inside float-right
+        odds_badge = float_right.select_one(".badge")
+        odds_text = odds_badge.get_text(strip=True) if odds_badge else ""
+        odds_match = re.search(r"@([\d.]+)", odds_text)
+        odds = odds_match.group(1) if odds_match else ""
+
+        # ── Build site field ──
+        site = (
+            f"{from_platform}:{country_code}"
+            if from_platform in ALLOWED_PLATFORMS
+            else from_platform
+        )
+
+        # ── Price tier ──
+        try:
+            price = "premium" if float(odds) > 1000 else "free"
+        except (ValueError, TypeError):
+            price = "free"
+
+        return {
+            "site":               site,
+            "code":               from_code,
+            "odd":                odds,
+            "rate":               kbt_funtions.get_random_rate(),
+            "email":              "support@bettingtipsnet.com",
+            "price":              price,
+            "post_time":          post_time,
+            "post_date":          post_date,
+            "booking_code_id":    kbt_funtions.get_betcode_uid(),
+            "slip_result_link":   "",
+            "platform_logo_link": kbt_funtions.get_platforms_json(from_platform),
+            "result":             "",
+        }
+
+    except Exception as e:
+        logger.error(f"Card parse error: {e}")
+        return None
+
+
+# ─────────────────────────────────────────────
+# Scraper
+# ─────────────────────────────────────────────
+def scrape_betcodes() -> int:
+    post_date = datetime.now(LAGOS).strftime("%Y-%m-%d")
+    post_time = datetime.now(LAGOS).strftime("%H:%M:%S")
+    raw_results: list[dict] = []
+
+    for page_num in PAGES:
+        url = f"{BASE_URL}?&page={page_num}"
         logger.info(f"Scraping page {page_num}: {url}")
 
-        try:
-            response = requests.get(url, headers=headers, timeout=10)
-            if response.status_code != 200:
-                logger.warning(f"Failed to retrieve page {page_num}. Status: {response.status_code}")
+        response = fetch_page(url)
+        if not response:
+            continue
+
+        soup = BeautifulSoup(response.content, "html.parser")
+
+        # paqbet wraps each code in a div.mg-y-10 > div.card.mg-b-5
+        # We only want the summary cards (not the modal copies)
+        # The summary card is always the FIRST .card inside each .mg-y-10 wrapper
+        wrappers = soup.select("div.mg-y-10")
+        logger.info(f"  Found {len(wrappers)} code blocks on page {page_num}")
+
+        for wrapper in wrappers:
+            # First card only (the visible summary, not the modal duplicate)
+            card = wrapper.select_one("div.card.mg-b-5")
+            if not card:
                 continue
+            record = parse_card(card, post_date, post_time)
+            if record:
+                raw_results.append(record)
 
-            soup = BeautifulSoup(response.content, 'html.parser')
+        sleep = random.uniform(*PAGE_SLEEP)
+        logger.info(f"  Sleeping {sleep:.1f}s…")
+        time.sleep(sleep)
 
-            for card in soup.find_all("div", class_="card"):
-                try:
-                    left_text = card.select_one(".row .col-6:nth-of-type(1)").get_text(strip=True).replace('\n', ' ')
+    # Deduplicate by booking code
+    unique = {r["code"]: r for r in raw_results}
+    results = list(unique.values())
+    logger.info(f"Unique codes after deduplication: {len(results)}")
 
-                    odds_match = re.search(r'@([\d.]+)', left_text)
-                    odds = odds_match.group(1) if odds_match else ""
-
-                    float_left = card.select_one("span.float-left")
-                    from_code = float_left.contents[0].strip('@') if float_left and float_left.contents else ""
-                    from_code = from_code.replace('\r', '').replace('\n', '').strip()
-
-                    from_platform = ""
-                    if float_left:
-                        code_elem = float_left.select_one("code")
-                        if code_elem:
-                            from_platform = code_elem.get_text(strip=True).split()[0]
-                            if from_platform == "DB":
-                                from_platform = "db_bet"
-
-                    flag_icon_elem = float_left.select_one("span.flag-icon") if float_left else None
-                    platform_icon_class = flag_icon_elem["class"][-1].split('-')[-1] if flag_icon_elem and "class" in flag_icon_elem.attrs else ""
-
-                    allowed_platforms = ["1xbet", "betano", "betika", "betway", "betwinner", "sportybet", "betcorrect", "betking", "paripulse"]
-                    if from_platform.lower() in allowed_platforms:
-                        site = f"{from_platform}:{platform_icon_class}"
-                    else:
-                        site = from_platform
-
-                    rate = kbt_funtions.get_random_rate()
-                    booking_code_id = kbt_funtions.get_betcode_uid()
-                    platform_color = kbt_funtions.get_platforms_json(from_platform)
-
-                    try:
-                        numeric_odds = float(odds)
-                        price = 'premium' if numeric_odds > 1000 else 'free'
-                    except (ValueError, TypeError):
-                        price = 'free'
-
-                    result = {
-                        "site": site,
-                        "code": from_code,
-                        "odd": odds,
-                        "rate": rate,
-                        "email": 'support@bettingtipsnet.com',
-                        "price": price,
-                        "post_time": post_time,
-                        "post_date": post_date,
-                        "booking_code_id": booking_code_id,
-                        "slip_result_link": '',
-                        "platform_logo_link": platform_color,
-                        "result": ""
-                    }
-
-                    results.append(result)
-                    card_index += 1
-
-                except Exception as e:
-                    logger.error(f"Error parsing card: {e}")
-
-        except Exception as e:
-            logger.error(f"Exception while scraping page {page_num}: {e}")
-
-        sleep_time = random.uniform(1, 3)
-        logger.info(f"Sleeping for {sleep_time:.2f} seconds before next request.")
-        time.sleep(sleep_time)
-
-    # Deduplicate by code
-    seen = {}
-    for r in results:
-        seen[r["code"]] = r
-    results = list(seen.values())
-    logger.info(f"After deduplication: {len(results)} unique codes")
-
-    csv_filename = "csv_files/betcodes.csv"
-    with open(csv_filename, mode='w', newline='', encoding='utf-8') as file:
-        fieldnames = ["site", "code", "odd", "rate", "email", "price", "post_time", "post_date", "booking_code_id", "slip_result_link", "platform_logo_link", "result"]
-        writer = csv.DictWriter(file, fieldnames=fieldnames)
+    # Write CSV
+    fieldnames = [
+        "site", "code", "odd", "rate", "email", "price",
+        "post_time", "post_date", "booking_code_id",
+        "slip_result_link", "platform_logo_link", "result",
+    ]
+    with open(CSV_PATH, mode="w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(results)
 
-    logger.info(f"Results saved to {csv_filename}")
+    logger.info(f"CSV written → {CSV_PATH}")
     return len(results)
 
 
-def connect_server(csv_filename):
+# ─────────────────────────────────────────────
+# DB upsert
+# ─────────────────────────────────────────────
+def upsert_to_db(csv_path: str) -> int:
     conn = get_db()
     cursor = conn.cursor()
     inserted = 0
 
+    INSERT_SQL = """
+        INSERT INTO booking_codes
+            (site, code, odd, rate, email, price, post_time, post_date,
+             booking_code_id, slip_result_link, platform_logo_link, result)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT (code) DO UPDATE SET
+            site               = EXCLUDED.site,
+            odd                = EXCLUDED.odd,
+            rate               = EXCLUDED.rate,
+            email              = EXCLUDED.email,
+            price              = EXCLUDED.price,
+            post_time          = EXCLUDED.post_time,
+            post_date          = EXCLUDED.post_date,
+            booking_code_id    = EXCLUDED.booking_code_id,
+            slip_result_link   = EXCLUDED.slip_result_link,
+            platform_logo_link = EXCLUDED.platform_logo_link,
+            result             = EXCLUDED.result
+    """
+
     try:
-        print("✅ Connected to PostgreSQL")
+        logger.info("Connected to PostgreSQL")
+        with open(csv_path, encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                row = {k: (v.strip() if v and v.strip() else None) for k, v in row.items()}
 
-        with open(csv_filename, "r", encoding='utf-8') as f:
-            csv_data = csv.reader(f)
-            next(csv_data, None)
+                if not row.get("code"):
+                    continue
+                if not row.get("odd"):
+                    continue
 
-            for row in csv_data:
                 try:
-                    row = [val.strip() if isinstance(val, str) else val for val in row]
-                    row = [val if val not in ("", None) else None for val in row]
+                    booking_id = int(row["booking_code_id"])
+                except (ValueError, TypeError):
+                    logger.warning(f"Invalid booking_code_id: {row.get('booking_code_id')}")
+                    continue
 
-                    code = row[1]
-                    odd = row[2]
-                    booking_id = row[8]
+                try:
+                    float(row["odd"])
+                except (ValueError, TypeError):
+                    logger.warning(f"Invalid odd: {row.get('odd')}")
+                    continue
 
-                    if not code:
-                        print("⚠️ Skipping (empty code):", row)
-                        continue
-                    if not odd:
-                        print("⚠️ Skipping (empty odd):", row)
-                        continue
-                    if not booking_id:
-                        print("⚠️ Skipping (empty booking_code_id):", row)
-                        continue
-
-                    try:
-                        row[8] = int(booking_id)
-                    except:
-                        print("⚠️ Invalid booking_code_id:", booking_id)
-                        continue
-
-                    try:
-                        float(odd)
-                    except:
-                        print("⚠️ Invalid odd:", odd)
-                        continue
-
-                    cursor.execute("""
-                        INSERT INTO booking_codes
-                        (site, code, odd, rate, email, price, post_time, post_date, booking_code_id, slip_result_link, platform_logo_link, result)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                        ON CONFLICT (code) DO UPDATE SET
-                            site               = EXCLUDED.site,
-                            odd                = EXCLUDED.odd,
-                            rate               = EXCLUDED.rate,
-                            email              = EXCLUDED.email,
-                            price              = EXCLUDED.price,
-                            post_time          = EXCLUDED.post_time,
-                            post_date          = EXCLUDED.post_date,
-                            booking_code_id    = EXCLUDED.booking_code_id,
-                            slip_result_link   = EXCLUDED.slip_result_link,
-                            platform_logo_link = EXCLUDED.platform_logo_link,
-                            result             = EXCLUDED.result
-                    """, row)
-
-                    inserted += 1
-
-                except Exception as e:
-                    print("❌ Row insert error:", e)
+                cursor.execute(INSERT_SQL, (
+                    row["site"], row["code"], row["odd"], row["rate"],
+                    row["email"], row["price"], row["post_time"], row["post_date"],
+                    booking_id, row["slip_result_link"],
+                    row["platform_logo_link"], row["result"],
+                ))
+                inserted += 1
 
         conn.commit()
-        print(f"✅ Inserted/updated {inserted} rows")
+        logger.info(f"Upserted {inserted} rows")
 
     except Exception as e:
-        import traceback
-        print("❌ DB ERROR:", repr(e))
+        logger.error(f"DB error: {e}")
         traceback.print_exc()
         conn.rollback()
 
@@ -256,24 +341,22 @@ def connect_server(csv_filename):
     return inserted
 
 
-def run():
-    """Main function that returns the number of inserted records"""
-    try:
-        logger.info("🚀 Running betcodes pipeline")
+# ─────────────────────────────────────────────
+# Entry point
+# ─────────────────────────────────────────────
+def run() -> int:
+    logger.info("🚀 Betcodes pipeline starting (source: paqbet.com)")
 
-        set_date = datetime.now(lagos).date()   # ← fresh on every call
-        scraped_count = get_bet_codes(set_date)
-        logger.info(f"📊 Scraped {scraped_count} unique bet codes")
+    scraped = scrape_betcodes()
+    logger.info(f"📥 Scraped {scraped} unique codes")
 
-        csv_filename = "csv_files/betcodes.csv"
-        inserted_count = connect_server(csv_filename)
-
-        logger.info(f"🎯 Pipeline complete. Inserted/updated: {inserted_count} rows")
-        return inserted_count
-
-    except Exception as e:
-        logger.error(f"❌ Error during pipeline execution: {e}")
+    if scraped == 0:
+        logger.warning("⚠️  No codes scraped — skipping DB upsert")
         return 0
+
+    inserted = upsert_to_db(CSV_PATH)
+    logger.info(f"✅ Pipeline complete — {inserted} rows upserted")
+    return inserted
 
 
 if __name__ == "__main__":

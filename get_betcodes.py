@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 # Constants
 # ─────────────────────────────────────────────
 LAGOS             = pytz.timezone("Africa/Lagos")
-BASE_URL          = "http://paqbet.com/pg/bet-codes"
+BASE_URL          = "https://convertbetcodes.com/c/free-bet-codes-for-today"
 CSV_PATH          = "csv_files/betcodes.csv"
 PAGES             = range(1, 4)
 PAGE_SLEEP        = (2, 5)
@@ -37,6 +37,11 @@ ALLOWED_PLATFORMS = {
     "sportybet", "betcorrect", "betking", "paripulse",
     "bet9ja", "paripesa", "msport", "db_bet",
 }
+
+# Each card on convertbetcodes.com is a conversion: SOURCE code → CONVERTED code.
+# Both are real booking codes on their own platform, so we can keep either or both.
+INCLUDE_SOURCE_CODE    = True   # left side  (e.g. betjam  3QBR3)
+INCLUDE_CONVERTED_CODE = True   # right side (e.g. helabet ZPN83)
 
 USER_AGENTS = [
     # Chrome - Windows
@@ -120,94 +125,134 @@ def fetch_page(url: str, retries: int = 3) -> requests.Response | None:
 
 
 # ─────────────────────────────────────────────
-# Parsing — paqbet.com HTML structure
+# Parsing — convertbetcodes.com HTML structure
 #
-# Each card looks like:
-#   <div class="card mg-b-5">
+# Each conversion is one card:
+#
+#   <div class="card">
+#     <div class="row">
+#       <div class="col-6"><span>1events <br>@2.01 odds</span></div>      ← source stats
+#       <div class="col-6 text-right"><span>1events <br>@2.19 odds</span></div>  ← converted stats
+#     </div>
 #     <h4>
 #       <span class="float-left">
-#         <small>PLATFORM</small>
-#         <span class="badge">N events <span class="flag-icon flag-icon-ng"></span></span>
+#         3QBR3 <br>                                                      ← source code
+#         <code class="badge">betjam <span class="flag-icon flag-icon-ng"></span></code>
 #       </span>
+#       <i class="conversion-arrow"></i>
 #       <span class="float-right">
-#         BOOKING_CODE
-#         <span class="badge">@ODDS odds</span>
+#         ZPN83 <br>                                                      ← converted code
+#         <code class="badge">helabet <span class="flag-icon flag-icon-ng"></span></code>
 #       </span>
 #     </h4>
+#     <small><a href=".../c/7196267/...">10 minutes ago</a> ...</small>
+#     <div class="modal">...</div>                                        ← ignored
 #   </div>
 # ─────────────────────────────────────────────
-def parse_card(card, post_date: str, post_time: str) -> dict | None:
+def parse_side(side_span, stats_col) -> tuple[str, str, str, str] | None:
+    """
+    Parse one side of a conversion card.
+    Returns (code, platform, country_code, odds) or None.
+    """
+    # ── Booking code: first non-empty direct text node (before the <br>) ──
+    code = ""
+    for node in side_span.find_all(string=True, recursive=False):
+        text = node.strip()
+        if text:
+            code = text
+            break
+    if not code:
+        return None
+
+    # ── Platform + country flag: <code class="badge"> ──
+    badge = side_span.select_one("code.badge")
+    if not badge:
+        return None
+
+    platform = badge.get_text(strip=True).lower()
+    if not platform:
+        return None
+    if platform == "db":
+        platform = "db_bet"
+
+    country_code = ""
+    flag = badge.select_one(".flag-icon")
+    if flag:
+        for cls in flag.get("class", []):
+            if cls.startswith("flag-icon-"):
+                country_code = cls.replace("flag-icon-", "")
+                break
+
+    # ── Odds: "1events @2.01 odds" in the matching stats column ──
+    odds = ""
+    if stats_col:
+        m = re.search(r"@\s*([\d.]+)", stats_col.get_text(" ", strip=True))
+        if m:
+            odds = m.group(1)
+
+    return code, platform, country_code, odds
+
+
+def build_record(code, platform, country_code, odds, post_date, post_time) -> dict:
+    site = (
+        f"{platform}:{country_code}"
+        if platform in ALLOWED_PLATFORMS and country_code
+        else platform
+    )
+
     try:
-        # ── Platform (e.g. "bet9ja", "1xbet") ──
-        platform_elem = card.select_one("h4 .float-left small")
-        if not platform_elem:
-            return None
-        from_platform = platform_elem.get_text(strip=True).lower()
-        if from_platform == "db":
-            from_platform = "db_bet"
+        price = "premium" if float(odds) > 1000 else "free"
+    except (ValueError, TypeError):
+        price = "free"
 
-        # ── Country flag class (e.g. "ng") ──
-        flag_elem = card.select_one("h4 .float-left .flag-icon")
-        country_code = ""
-        if flag_elem:
-            classes = flag_elem.get("class", [])
-            for cls in classes:
-                if cls.startswith("flag-icon-"):
-                    country_code = cls.replace("flag-icon-", "")
-                    break
+    return {
+        "site":               site,
+        "code":               code,
+        "odd":                odds,
+        "rate":               kbt_funtions.get_random_rate(),
+        "email":              "support@bettingtipsnet.com",
+        "price":              price,
+        "post_time":          post_time,
+        "post_date":          post_date,
+        "booking_code_id":    kbt_funtions.get_betcode_uid(),
+        "slip_result_link":   "",
+        "platform_logo_link": kbt_funtions.get_platforms_json(platform),
+        "result":             "",
+    }
 
-        # ── Booking code and odds — inside float-right ──
-        float_right = card.select_one("h4 .float-right")
-        if not float_right:
-            return None
 
-        # The booking code is the first text node inside float-right
-        raw_text = float_right.get_text(separator="|", strip=True)
-        # raw_text looks like: "5HSG9P9|@3.34 odds"
-        parts = [p.strip() for p in raw_text.split("|") if p.strip()]
+def parse_card(card, post_date: str, post_time: str) -> list[dict]:
+    """Parse one conversion card into 0–2 records (source and/or converted code)."""
+    try:
+        left  = card.select_one("h4 > span.float-left")
+        right = card.select_one("h4 > span.float-right")
+        if not left or not right:
+            return []
 
-        from_code = parts[0] if parts else ""
-        from_code = from_code.strip("@").strip()
-        if not from_code:
-            return None
+        # Stats columns: first = source side, second = converted side
+        stat_cols = card.select("div.row > div.col-6")
+        left_stats  = stat_cols[0] if len(stat_cols) > 0 else None
+        right_stats = stat_cols[1] if len(stat_cols) > 1 else None
 
-        # Odds: find the badge inside float-right
-        odds_badge = float_right.select_one(".badge")
-        odds_text = odds_badge.get_text(strip=True) if odds_badge else ""
-        odds_match = re.search(r"@([\d.]+)", odds_text)
-        odds = odds_match.group(1) if odds_match else ""
+        sides = []
+        if INCLUDE_SOURCE_CODE:
+            sides.append((left, left_stats))
+        if INCLUDE_CONVERTED_CODE:
+            sides.append((right, right_stats))
 
-        # ── Build site field ──
-        site = (
-            f"{from_platform}:{country_code}"
-            if from_platform in ALLOWED_PLATFORMS
-            else from_platform
-        )
-
-        # ── Price tier ──
-        try:
-            price = "premium" if float(odds) > 1000 else "free"
-        except (ValueError, TypeError):
-            price = "free"
-
-        return {
-            "site":               site,
-            "code":               from_code,
-            "odd":                odds,
-            "rate":               kbt_funtions.get_random_rate(),
-            "email":              "support@bettingtipsnet.com",
-            "price":              price,
-            "post_time":          post_time,
-            "post_date":          post_date,
-            "booking_code_id":    kbt_funtions.get_betcode_uid(),
-            "slip_result_link":   "",
-            "platform_logo_link": kbt_funtions.get_platforms_json(from_platform),
-            "result":             "",
-        }
+        records = []
+        for span, stats in sides:
+            parsed = parse_side(span, stats)
+            if parsed:
+                code, platform, country_code, odds = parsed
+                records.append(
+                    build_record(code, platform, country_code, odds, post_date, post_time)
+                )
+        return records
 
     except Exception as e:
         logger.error(f"Card parse error: {e}")
-        return None
+        return []
 
 
 # ─────────────────────────────────────────────
@@ -219,7 +264,7 @@ def scrape_betcodes() -> int:
     raw_results: list[dict] = []
 
     for page_num in PAGES:
-        url = f"{BASE_URL}?&page={page_num}"
+        url = f"{BASE_URL}?page={page_num}"
         logger.info(f"Scraping page {page_num}: {url}")
 
         response = fetch_page(url)
@@ -228,20 +273,12 @@ def scrape_betcodes() -> int:
 
         soup = BeautifulSoup(response.content, "html.parser")
 
-        # paqbet wraps each code in a div.mg-y-10 > div.card.mg-b-5
-        # We only want the summary cards (not the modal copies)
-        # The summary card is always the FIRST .card inside each .mg-y-10 wrapper
-        wrappers = soup.select("div.mg-y-10")
-        logger.info(f"  Found {len(wrappers)} code blocks on page {page_num}")
+        # One div.card per conversion (the modal inside it has no .card class)
+        cards = soup.select("div.card")
+        logger.info(f"  Found {len(cards)} cards on page {page_num}")
 
-        for wrapper in wrappers:
-            # First card only (the visible summary, not the modal duplicate)
-            card = wrapper.select_one("div.card.mg-b-5")
-            if not card:
-                continue
-            record = parse_card(card, post_date, post_time)
-            if record:
-                raw_results.append(record)
+        for card in cards:
+            raw_results.extend(parse_card(card, post_date, post_time))
 
         sleep = random.uniform(*PAGE_SLEEP)
         logger.info(f"  Sleeping {sleep:.1f}s…")
@@ -345,7 +382,7 @@ def upsert_to_db(csv_path: str) -> int:
 # Entry point
 # ─────────────────────────────────────────────
 def run() -> int:
-    logger.info("🚀 Betcodes pipeline starting (source: paqbet.com)")
+    logger.info("🚀 Betcodes pipeline starting (source: convertbetcodes.com)")
 
     scraped = scrape_betcodes()
     logger.info(f"📥 Scraped {scraped} unique codes")

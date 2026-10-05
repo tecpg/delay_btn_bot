@@ -201,6 +201,8 @@ class DeviceRegistration(BaseModel):
     user_id: str
     device_model: str
     app_version: str
+    fcm_token: Optional[str] = None
+    platform: Optional[str] = None
 
 
 # ────────────────────────────────────────────────
@@ -340,7 +342,12 @@ async def get_fixture_notification_status(user_id: str, fixture_id: int):
 async def register_device(registration: DeviceRegistration):
     await notification_service.register_user(
         registration.user_id,
-        {'device_model': registration.device_model, 'app_version': registration.app_version}
+        {
+            'device_model': registration.device_model,
+            'app_version': registration.app_version,
+            'fcm_token': registration.fcm_token,
+            'platform': registration.platform,
+        }
     )
     return {"status": "registered"}
 

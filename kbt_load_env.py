@@ -20,6 +20,9 @@ access_token_secret = os.environ['access_token_secret']
 onesignal_app_id = os.getenv("ONESIGNAL_APP_ID")
 onesignal_api_key = os.getenv("ONESIGNAL_API_KEY")
 
+# Firebase service account key (full JSON as one string). FCM is off when unset.
+firebase_service_account = os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON")
+
 # Debug: Check if loaded (don't print full key in production)
 # print(f"🔑 oneSignal_app_id loaded: {bool(onesignal_app_id)}")
 # print(f"🔑 oneSignal_app_key loaded: {bool(onesignal_api_key)}")

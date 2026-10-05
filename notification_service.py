@@ -5,6 +5,7 @@ from typing import List, Dict
 from db_utils import get_db, release_db
 import kbt_load_env
 import requests
+import fcm_service
 
 
 class MatchNotificationService:
@@ -33,6 +34,9 @@ class MatchNotificationService:
         self.onesignal_app_id = kbt_load_env.onesignal_app_id
         self.onesignal_api_key = kbt_load_env.onesignal_api_key
         self.api_url = "https://api.onesignal.com/notifications"
+        # OneSignal stays on for app versions that have no FCM token yet.
+        # Unset ONESIGNAL_API_KEY to switch it off once migration is done.
+        self.onesignal_enabled = bool(self.onesignal_app_id and self.onesignal_api_key)
 
         print(f"📱 App ID: {self.onesignal_app_id}")
         print(f"🔑 API Key exists: {bool(self.onesignal_api_key)}")
@@ -49,13 +53,7 @@ class MatchNotificationService:
             "data": {"type": "betcodes"}
         }
 
-        headers = {
-            "Authorization": f"Basic {self.onesignal_api_key}",
-            "Content-Type": "application/json"
-        }
-
-        response = requests.post(url, json=payload, headers=headers)
-        print("📢 Notification sent:", response.status_code, response.text)
+        self._broadcast_sync(url, payload)
 
     # ========================= LOGIC =========================
     def is_prediction_correct(self, prediction, hs, aw):
@@ -73,7 +71,73 @@ class MatchNotificationService:
         return any(t.lower() in league_lower for t in self.TOP_LEAGUES)
 
     # ========================= SEND CORE =========================
+    @staticmethod
+    def _fcm_args(payload: Dict) -> Dict:
+        """Map a OneSignal payload onto fcm_service arguments."""
+        return {
+            "title": payload["headings"]["en"],
+            "body": payload["contents"]["en"],
+            "data": payload.get("data"),
+            "subtitle": (payload.get("subtitle") or {}).get("en"),
+            "ttl": payload.get("ttl"),
+        }
+
+    def _broadcast_sync(self, onesignal_url: str, payload: Dict):
+        """Blocking broadcast: FCM topic + OneSignal "All" segment."""
+        if fcm_service.is_enabled():
+            fcm_service.send_topic_sync(**self._fcm_args(payload))
+
+        if self.onesignal_enabled:
+            response = requests.post(
+                onesignal_url,
+                json=payload,
+                headers={
+                    "Authorization": f"Basic {self.onesignal_api_key}",
+                    "Content-Type": "application/json"
+                }
+            )
+            print("📢 Notification sent:", response.status_code, response.text)
+
     async def _send(self, payload: Dict) -> bool:
+        """
+        Deliver through FCM for devices that registered a token and through
+        OneSignal for the rest. False only when nothing was delivered and at
+        least one channel failed, so the caller can release its claim.
+        """
+        attempted = False
+        delivered = False
+        users = payload.get("include_external_user_ids")
+
+        if users is None:
+            # Broadcast
+            if fcm_service.is_enabled():
+                attempted = True
+                delivered |= await fcm_service.send_topic(**self._fcm_args(payload))
+            if self.onesignal_enabled:
+                attempted = True
+                delivered |= await self._send_onesignal(payload)
+            return delivered or not attempted
+
+        # Per-user
+        tokens = self._get_fcm_tokens(users) if fcm_service.is_enabled() else {}
+        if tokens:
+            attempted = True
+            success, dead = await fcm_service.send_tokens(
+                list(tokens.values()), **self._fcm_args(payload)
+            )
+            delivered |= success > 0
+            self._clear_fcm_tokens(dead)
+
+        remaining = [u for u in users if u not in tokens]
+        if remaining and self.onesignal_enabled:
+            attempted = True
+            delivered |= await self._send_onesignal(
+                {**payload, "include_external_user_ids": remaining}
+            )
+
+        return delivered or not attempted
+
+    async def _send_onesignal(self, payload: Dict) -> bool:
         try:
             async with httpx.AsyncClient() as client:
                 res = await client.post(
@@ -112,8 +176,59 @@ class MatchNotificationService:
             cursor.close()
             release_db(conn)
 
+    # ========================= FCM TOKENS =========================
+    def _get_fcm_tokens(self, user_ids: List[str]) -> Dict[str, str]:
+        """user_id -> fcm_token for the users that have one."""
+        conn = get_db()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+                SELECT user_id, fcm_token
+                FROM users
+                WHERE user_id = ANY(%s) AND fcm_token IS NOT NULL
+            """, (list(user_ids),))
+            return {row[0]: row[1] for row in cursor.fetchall()}
+        finally:
+            cursor.close()
+            release_db(conn)
+
+    def _clear_fcm_tokens(self, tokens: List[str]):
+        if not tokens:
+            return
+        conn = get_db()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                "UPDATE users SET fcm_token = NULL WHERE fcm_token = ANY(%s)",
+                (list(tokens),)
+            )
+            conn.commit()
+            print(f"🧹 Cleared {len(tokens)} dead FCM tokens")
+        finally:
+            cursor.close()
+            release_db(conn)
+
+    async def _delete_onesignal_user(self, user_id: str):
+        """
+        Drop the user's OneSignal subscription once they are on FCM. Their APNs
+        token stays valid after the app update, so without this they would get
+        every broadcast twice.
+        """
+        try:
+            async with httpx.AsyncClient() as client:
+                res = await client.delete(
+                    f"https://api.onesignal.com/apps/{self.onesignal_app_id}"
+                    f"/users/by/external_id/{user_id}",
+                    headers={"Authorization": f"Key {self.onesignal_api_key}"}
+                )
+            print(f"🗑️ OneSignal user delete {user_id}: {res.status_code}")
+        except Exception as e:
+            print(f"❌ OneSignal user delete error: {e}")
+
     # ========================= REGISTER =========================
     async def register_user(self, user_id: str, device_info: Dict):
+        fcm_token = device_info.get('fcm_token')
+
         conn = get_db()
         cursor = conn.cursor()
         try:
@@ -127,11 +242,29 @@ class MatchNotificationService:
                 device_info.get('device_model'),
                 device_info.get('app_version')
             ))
+
+            # Only apps on the FCM build send fcm_token ("" = notifications off)
+            if fcm_token is not None:
+                cursor.execute("""
+                    UPDATE users SET fcm_token = NULL
+                    WHERE fcm_token = %s AND user_id <> %s
+                """, (fcm_token, user_id))
+                cursor.execute("""
+                    UPDATE users
+                    SET fcm_token = NULLIF(%s, ''),
+                        platform = %s,
+                        fcm_updated_at = NOW()
+                    WHERE user_id = %s
+                """, (fcm_token, device_info.get('platform'), user_id))
+
             conn.commit()
             print(f"✅ User registered: {user_id}")
         finally:
             cursor.close()
             release_db(conn)
+
+        if fcm_token and fcm_service.is_enabled() and self.onesignal_enabled:
+            await self._delete_onesignal_user(user_id)
 
     # ========================= MATCH REMINDER (per-user) =========================
     async def send_match_reminder(self, fixture: Dict):
@@ -204,7 +337,10 @@ class MatchNotificationService:
                 "target_channel": "push",
                 "headings": {"en": title},
                 "contents": {"en": message},
-                "data": {"fixture_id": fixture_id}
+                "data": {
+                    "type": "prediction_result",
+                    "fixture_id": str(fixture_id)
+                }
             }
 
             sent = await self._send(payload)
@@ -542,14 +678,4 @@ class MatchNotificationService:
             "ios_interruption_level": "active",
         }
 
-        headers = {
-            "Authorization": f"Basic {self.onesignal_api_key}",
-            "Content-Type": "application/json"
-        }
-
-        response = requests.post(
-            "https://onesignal.com/api/v1/notifications",
-            json=payload,
-            headers=headers
-        )
-        print(f"📢 Predictions ready notification: {response.status_code} {response.text}")
+        self._broadcast_sync("https://onesignal.com/api/v1/notifications", payload)

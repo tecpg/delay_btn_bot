@@ -69,10 +69,15 @@ def _message(
     if subtitle:
         alert["subtitle"] = subtitle
 
-    apns = {"payload": {"aps": {"alert": alert, "sound": "default"}}}
+    # Priority and push type spelled out so iOS always delivers these as
+    # visible alerts straight away, rather than relying on the defaults
+    apns = {
+        "headers": {"apns-priority": "10", "apns-push-type": "alert"},
+        "payload": {"aps": {"alert": alert, "sound": "default"}},
+    }
     android = {"priority": "HIGH"}
     if ttl:
-        apns["headers"] = {"apns-expiration": str(int(time.time()) + ttl)}
+        apns["headers"]["apns-expiration"] = str(int(time.time()) + ttl)
         android["ttl"] = f"{ttl}s"
 
     return {

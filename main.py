@@ -287,11 +287,10 @@ def run_betcodes():
     try:
         count = get_betcodes.run()
         logging.info("✅ get_betcodes completed")
-        notifier = MatchNotificationService()
-        if count and count > 0:
-            notifier.send_betcode_notification()
-        else:
-            logging.info("ℹ️ No new betcodes → skipping notification")
+        # No "new bet codes" push from here any more: winscore_bot sends it
+        # to every Win 1x2 3.x device, and the old app (2.x) is behind a
+        # forced update, so this one only arrived as a duplicate.
+        logging.info(f"ℹ️ {count or 0} betcodes saved (push is sent by winscore_bot)")
     except Exception as e:
         logging.exception("❌ get_betcodes failed")
 
@@ -405,16 +404,6 @@ def check_vip_results():
 
 
 # ─────────────────────────────
-# PREDICTIONS READY BROADCAST
-# ─────────────────────────────
-def send_predictions_ready():
-    logging.info(f"📢 Sending predictions ready notification at {datetime.now(LAGOS_TZ)}")
-    try:
-        notifier = MatchNotificationService()
-        notifier.send_predictions_ready()
-    except Exception as e:
-        logging.exception("❌ send_predictions_ready failed")
-# ─────────────────────────────
 # SCHEDULER
 # ─────────────────────────────
 scheduler = BlockingScheduler(timezone=LAGOS_TZ)
@@ -478,37 +467,9 @@ scheduler.add_job(
 )
 
 
-# 1:30 AM — after daily pipeline posts tips
-scheduler.add_job(
-    send_predictions_ready,
-    'cron', hour=1, minute=30,
-    id='predictions_ready_0130',
-    max_instances=1, coalesce=True
-)
-
-# 7:30 AM — morning reminder
-scheduler.add_job(
-    send_predictions_ready,
-    'cron', hour=7, minute=30,
-    id='predictions_ready_0730',
-    max_instances=1, coalesce=True
-)
-
-# 11:45 AM — midday reminder
-scheduler.add_job(
-    send_predictions_ready,
-    'cron', hour=11, minute=45,
-    id='predictions_ready_1145',
-    max_instances=1, coalesce=True
-)
-
-# 3:30 PM — afternoon reminder
-scheduler.add_job(
-    send_predictions_ready,
-    'cron', hour=15, minute=30,
-    id='predictions_ready_1530',
-    max_instances=1, coalesce=True
-)
+# The "predictions ready" broadcast (01:30, 07:30, 11:45, 15:30) is sent by
+# winscore_bot to every Win 1x2 3.x device; sending it from here too only
+# gave those phones a duplicate (the old app is behind a forced update).
 
 print("🚀 Worker started...")
 print("   - Live updates every 5 minutes")

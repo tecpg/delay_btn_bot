@@ -295,110 +295,8 @@ def run_betcodes():
         logging.exception("❌ get_betcodes failed")
 
 
-# ─────────────────────────────
-# TOP LEAGUE CHECKER
-# ─────────────────────────────
-def check_top_league_matches():
-    conn = get_db()
-    cursor = conn.cursor(cursor_factory=RealDictCursor)
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
-    try:
-        cursor.execute("""
-        SELECT 
-            pt.fixture_id, pt.home_team, pt.away_team, pt.league, pt.prediction,
-            pt.home_score, pt.away_score, pt.status, pt.match_datetime,
-            nl.top_league_reminder_sent,
-            nl.top_league_result_sent
-        FROM pro_tips pt
-        LEFT JOIN notification_log nl ON nl.fixture_id = pt.fixture_id
-        WHERE pt.match_datetime BETWEEN NOW() - INTERVAL '3 hours'
-                                    AND NOW() + INTERVAL '45 minutes'
-        AND pt.status IN ('NS', 'FT')
-    """)
-
-        rows = cursor.fetchall()
-
-        for row in rows:
-            league = row.get('league', '')
-            if not notification_service.is_top_league(league):
-                continue
-
-            status = row.get('status')
-            fixture_id = row['fixture_id']
-
-            if status == 'NS':
-                match_time = row['match_datetime']
-                if isinstance(match_time, str):
-                    match_time = datetime.fromisoformat(match_time)
-                minutes_until = (match_time - datetime.now()).total_seconds() / 60
-                if 15 <= minutes_until <= 30:
-                    print(f"🏆 Top-league match soon: {row['home_team']} vs {row['away_team']} ({league})")
-                    try:
-                        loop.run_until_complete(
-                            notification_service.send_top_league_reminder(row)
-                        )
-                    except Exception as e:
-                        print(f"❌ Top-league reminder failed for {fixture_id}: {e}")
-
-            elif status == 'FT':
-                if row.get('top_league_result_sent'):
-                    continue
-                print(f"🏆 Top-league result: {row['home_team']} vs {row['away_team']} ({league})")
-                try:
-                    loop.run_until_complete(
-                        notification_service.send_top_league_result(row)
-                    )
-                except Exception as e:
-                    print(f"❌ Top-league result failed for {fixture_id}: {e}")
-
-    except Exception as e:
-        print(f"🔥 check_top_league_matches crash: {e}")
-
-    finally:
-        loop.close()
-        cursor.close()
-        release_db(conn)
-
-
-
-def check_vip_results():
-    conn = get_db()
-    cursor = conn.cursor(cursor_factory=RealDictCursor)
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
-    try:
-        cursor.execute("""
-            SELECT 
-                pt.fixture_id, pt.home_team, pt.away_team, pt.prediction,
-                pt.home_score, pt.away_score, pt.status,
-                nl.vip_result_sent
-            FROM pro_tips pt
-            JOIN vip_tips vt ON vt.fixture_id = pt.fixture_id
-            LEFT JOIN notification_log nl ON nl.fixture_id = pt.fixture_id
-            WHERE vt.vip_date = CURRENT_DATE
-            AND pt.status = 'FT'
-            AND (nl.vip_result_sent IS NULL OR nl.vip_result_sent = FALSE)
-        """)
-
-        rows = cursor.fetchall()
-
-        for row in rows:
-            print(f"💎 VIP match finished: {row['home_team']} vs {row['away_team']}")
-            try:
-                loop.run_until_complete(notification_service.send_vip_result(row))
-            except Exception as e:
-                print(f"❌ VIP result notification failed for {row['fixture_id']}: {e}")
-
-    except Exception as e:
-        print(f"🔥 check_vip_results crash: {e}")
-
-    finally:
-        loop.close()
-        cursor.close()
-        release_db(conn)
+# Top-match reminders/results and VIP-result pushes are sent by winscore_bot
+# (app/services/tip_pushes.py) to every Win 1x2 3.x device.
 
 
 
@@ -449,22 +347,8 @@ scheduler.add_job(
 
 
 
-scheduler.add_job(
-    check_top_league_matches,
-    'interval',
-    minutes=5,
-    max_instances=1,
-    coalesce=True
-)
 
 
-scheduler.add_job(
-    check_vip_results,
-    'interval',
-    minutes=5,
-    max_instances=1,
-    coalesce=True
-)
 
 
 # The "predictions ready" broadcast (01:30, 07:30, 11:45, 15:30) is sent by
@@ -473,7 +357,6 @@ scheduler.add_job(
 
 print("🚀 Worker started...")
 print("   - Live updates every 5 minutes")
-print("   - Top league checker every 5 minutes")
 print("   - Daily pipeline at 1:00 AM")
 print("   - Betcodes every 3 hours from 6 AM")
 

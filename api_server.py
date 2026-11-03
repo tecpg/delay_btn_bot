@@ -1,4 +1,5 @@
 import json
+import os
 import asyncio
 import logging
 from datetime import date, datetime, timezone
@@ -897,6 +898,44 @@ async def get_single_fixture(fixture_id: int):
 # ────────────────────────────────────────────────
 # BOOKING CODES
 # ────────────────────────────────────────────────
+# ──────────────────────────────────────
+# UPDATE NUDGE FOR THE OLD APP
+# ──────────────────────────────────────
+# Only versions before 3.0.0 read bet codes from here (3.x uses winscore_bot),
+# and their update prompt only shows on the Win tab, which most never open.
+# So this list itself tells them: a few update cards first, then only the
+# newest OLD_APP_FREE_CODES codes. OLD_APP_UPDATE_NUDGE=off sends the full
+# list again.
+OLD_APP_UPDATE_NUDGE = os.getenv("OLD_APP_UPDATE_NUDGE", "on").lower() != "off"
+OLD_APP_FREE_CODES   = int(os.getenv("OLD_APP_FREE_CODES", "10"))
+UPDATE_SITE_NAME     = "Update Win 1x2 in App Store"
+
+
+def _with_update_nudge(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    if not OLD_APP_UPDATE_NUDGE or not rows:
+        return rows
+    hidden = max(len(rows) - OLD_APP_FREE_CODES, 0)
+    messages = ([f"+{hidden} MORE CODES"] if hidden else []) + ["ALERTS STOPPED", "FREE PREMIUM"]
+    # Newest post time, so the cards stay on top however the app orders them
+    latest = max(r.get("post_time") or "" for r in rows)
+    template = rows[0]
+    cards = [
+        {
+            **{key: None for key in template},
+            "id": -(i + 1),
+            "site": UPDATE_SITE_NAME,
+            "code": message,
+            "odd": 0,
+            "rate": 0,
+            "price": "free",
+            "post_time": latest,
+            "post_date": template.get("post_date"),
+        }
+        for i, message in enumerate(messages)
+    ]
+    return cards + rows[:OLD_APP_FREE_CODES]
+
+
 @app.get("/betcodes/today")
 def get_betcodes_today():
     conn   = get_db()
@@ -914,7 +953,7 @@ def get_betcodes_today():
                 r["post_time"] = str(r["post_time"])
             if r.get("post_date"):
                 r["post_date"] = str(r["post_date"])
-        return rows
+        return _with_update_nudge(rows)
     finally:
         cursor.close()
         release_db(conn)

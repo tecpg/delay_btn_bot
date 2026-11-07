@@ -915,7 +915,12 @@ def _with_update_nudge(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     if not OLD_APP_UPDATE_NUDGE or not rows:
         return rows
     hidden = max(len(rows) - OLD_APP_FREE_CODES, 0)
-    messages = ([f"+{hidden} MORE CODES"] if hidden else []) + ["ALERTS STOPPED", "FREE PREMIUM"]
+    # This version is being retired: say so first
+    messages = (
+        ["APP SHUTTING DOWN SOON"]
+        + ([f"+{hidden} MORE CODES"] if hidden else [])
+        + ["ALERTS STOPPED", "FREE PREMIUM"]
+    )
     # Newest post time, so the cards stay on top however the app orders them
     latest = max(r.get("post_time") or "" for r in rows)
     template = rows[0]

@@ -903,11 +903,11 @@ async def get_single_fixture(fixture_id: int):
 # ──────────────────────────────────────
 # Only versions before 3.0.0 read bet codes from here (3.x uses winscore_bot),
 # and their update prompt only shows on the Win tab, which most never open.
-# So this list itself tells them: a few update cards first, then only the
-# newest OLD_APP_FREE_CODES codes. OLD_APP_UPDATE_NUDGE=off sends the full
-# list again.
+# So this list itself tells them: update cards instead of codes (the
+# newest OLD_APP_FREE_CODES codes can be kept under them -- none since 3.1.0
+# build 38 went live). OLD_APP_UPDATE_NUDGE=off sends the full list again.
 OLD_APP_UPDATE_NUDGE = os.getenv("OLD_APP_UPDATE_NUDGE", "on").lower() != "off"
-OLD_APP_FREE_CODES   = int(os.getenv("OLD_APP_FREE_CODES", "10"))
+OLD_APP_FREE_CODES   = int(os.getenv("OLD_APP_FREE_CODES", "0"))
 UPDATE_SITE_NAME     = "Update Win 1x2 in App Store"
 
 

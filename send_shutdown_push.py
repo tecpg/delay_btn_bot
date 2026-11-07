@@ -69,7 +69,9 @@ def main() -> None:
         print("FCM isn't set up in this environment -- nothing sent.")
         return
 
-    success, dead = asyncio.run(fcm_service.send_tokens(targets, TITLE, BODY, {"type": "app_update"}))
+    # "betcodes": a tap opens the old app's bet codes list, which now shows
+    # the "APP SHUTTING DOWN SOON" / update cards (api_server._with_update_nudge)
+    success, dead = asyncio.run(fcm_service.send_tokens(targets, TITLE, BODY, {"type": "betcodes"}))
     clear_tokens(dead)
     print(f"Sent to {success} of {len(targets)} phones; cleared {len(dead)} dead tokens.")
 
